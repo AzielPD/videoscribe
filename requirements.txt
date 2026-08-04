@@ -1,0 +1,26 @@
+# VideoScribe dependencies.
+#
+# Install with:
+#     pip install -r requirements.txt
+#
+# Or let the installer do it:  init.cmd (Windows) / ./init.sh (Mac, Linux)
+
+# Speech recognition. Pulls in ctranslate2, tokenizers and onnxruntime, which
+# together account for most of the download. onnxruntime is what powers the
+# voice activity detection that trims silence before transcription.
+faster-whisper>=1.0.0
+
+# Used for every audio calculation: the acoustic features that tell speakers
+# apart, and the clustering that groups them.
+numpy>=1.24
+
+# --------------------------------------------------------------------------
+# Not required
+# --------------------------------------------------------------------------
+# ffmpeg is a separate program, not a Python package. The installer scripts
+# fetch it; see the README if you would rather install it yourself.
+#
+# The optional written description of the video needs an image-capable model.
+# No package is needed for that either: it is reached over the network, either
+# through the Claude Code command line tool or through an API key you put in
+# .env. See videoscribe/vision.py for the full list of supported providers.

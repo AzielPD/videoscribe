@@ -1,0 +1,44 @@
+# --- Your files ------------------------------------------------------------
+# Videos and results never belong in version control: they are large and often
+# confidential. The folders themselves are kept via their .gitkeep files.
+inbox/*
+!inbox/.gitkeep
+!inbox/README.txt
+
+output/*
+!output/.gitkeep
+!output/README.txt
+
+# --- Personal settings -----------------------------------------------------
+# .env holds machine-specific paths and, potentially, API keys.
+.env
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Editors, assistants and operating systems ------------------------------
+# Local AI assistant permissions; machine-specific and of no use to anyone else.
+# CLAUDE.md at the repository root IS tracked: it is project documentation.
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Stray media -----------------------------------------------------------
+# Guards against test files being committed from the repository root.
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+*.mp3
+*.wav

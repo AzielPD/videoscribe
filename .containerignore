@@ -1,0 +1,52 @@
+# Files that must never enter a container image.
+#
+# Without this, `COPY . /app` pulls in every video in inbox/ and every result
+# in output/ -- gigabytes of data that make the build slow and the image
+# enormous, for no benefit. The tests generate their own tiny clip instead.
+#
+# Podman reads this file; Docker reads .dockerignore, which is a symlink to it
+# (or a copy on Windows).
+
+# Your media and results.
+inbox/*
+!inbox/.gitkeep
+!inbox/README.txt
+output/*
+!output/.gitkeep
+!output/README.txt
+output_test/
+
+# Anything left from a local run.
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+*.mp3
+*.wav
+*.jpg
+
+# Python build artefacts and environments.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local settings, which may hold API keys.
+.env
+
+# Version control and editors.
+.git/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Agent and tooling folders.
+.claude/

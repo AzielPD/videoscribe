@@ -1,0 +1,87 @@
+{
+  "_comment": [
+    "VideoScribe settings. Edit this file to change the defaults for everyone",
+    "who uses this copy. To change something only on your own machine, copy",
+    ".env.example to .env and set it there instead -- .env always wins.",
+    "Any setting can also be overridden on the command line, which wins over both."
+  ],
+
+  "ui": {
+    "_comment": [
+      "Language of the menus and messages: en or es.",
+      "Leave empty to follow the operating system, falling back to English.",
+      "The menu can change this for you and remembers the choice in .env"
+    ],
+    "language": ""
+  },
+
+  "audio": {
+    "_comment": "How the sound track is extracted.",
+    "mp3_bitrate": "128k",
+    "sample_rate": 16000
+  },
+
+  "transcription": {
+    "_comment": [
+      "model: tiny, base, small, medium, large-v3. Bigger is more accurate and",
+      "slower. Run 'python videoscribe.py models' to see timings for your computer.",
+      "language: two-letter code such as es or en, or auto to detect it.",
+      "cpu_threads: 0 means use every core, up to 16."
+    ],
+    "model": "small",
+    "language": "es",
+    "compute_type": "int8",
+    "beam_size": 5,
+    "cpu_threads": 0
+  },
+
+  "speakers": {
+    "_comment": [
+      "count: how many people speak. 0 asks the program to work it out, which is",
+      "unreliable in noisy recordings -- if the result looks wrong, set the real",
+      "number here and re-run with --resume, which takes seconds.",
+      "label: the word before the number, giving Person1, Person2, ..."
+    ],
+    "count": 0,
+    "max_count": 6,
+    "label": "Person"
+  },
+
+  "narration": {
+    "_comment": [
+      "The optional written account of what is visible on screen.",
+      "frame_interval_seconds: a frame every N seconds. Smaller catches more",
+      "detail and costs proportionally more.",
+      "window_seconds: how much video is described per request.",
+      "vision_model / synthesis_model: leave empty to use the sensible default",
+      "for whichever image model is configured.",
+      "output_language: the language the account is written in."
+    ],
+    "enabled": true,
+    "frame_interval_seconds": 10,
+    "window_seconds": 120,
+    "max_frame_edge": 1568,
+    "vision_model": "",
+    "synthesis_model": "",
+    "output_language": "Spanish"
+  },
+
+  "paths": {
+    "_comment": [
+      "Folders, relative to this file unless you give a full path.",
+      "ffmpeg: leave empty to search automatically."
+    ],
+    "inbox": "inbox",
+    "output": "output",
+    "ffmpeg": ""
+  },
+
+  "cleanup": {
+    "_comment": [
+      "Temporary files are deleted after a successful run. Keep them if you plan",
+      "to re-run a step with --resume."
+    ],
+    "keep_wav": false,
+    "keep_frames": false
+  }
+}

@@ -1,0 +1,42 @@
+# Line endings.
+#
+# Without this file, a clone on Windows with core.autocrlf=true rewrites the
+# shell scripts with CRLF line endings. Linux and macOS then fail to run them
+# with a confusing error:
+#
+#     ./init.sh: line 2: $'\r': command not found
+#
+# So the shell scripts are pinned to LF regardless of the platform they are
+# checked out on, and the Windows scripts are pinned to CRLF because cmd.exe
+# is unreliable with LF-only batch files.
+
+# Let git decide for ordinary text files.
+* text=auto
+
+# Must always be LF, or they break on Linux and macOS.
+*.sh        text eol=lf
+*.py        text eol=lf
+
+# Must always be CRLF, for cmd.exe.
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+
+# PowerShell reads either, but keeps Windows convention.
+*.ps1       text eol=crlf
+
+# Documentation and configuration.
+*.md        text eol=lf
+*.json      text eol=lf
+*.txt       text eol=lf
+.env.example text eol=lf
+
+# Never modified: treat as binary so git does not touch the bytes.
+*.mp4       binary
+*.mkv       binary
+*.mov       binary
+*.avi       binary
+*.webm      binary
+*.mp3       binary
+*.wav       binary
+*.jpg       binary
+*.png       binary

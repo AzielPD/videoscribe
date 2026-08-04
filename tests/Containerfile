@@ -1,0 +1,45 @@
+# Container used to check that VideoScribe behaves on Linux.
+#
+# It deliberately installs only what the *menu* needs -- Python, ffmpeg and
+# numpy -- and not faster-whisper, which is a large download. That is enough to
+# exercise every code path a user meets before any actual processing starts:
+# machine detection, tool discovery, the menu itself, and the error messages
+# shown when something is missing.
+#
+# Build and run from the repository root:
+#
+#     podman build -t videoscribe-test -f tests/Containerfile .
+#     podman run --rm -i videoscribe-test
+#
+# Or run the whole suite:
+#
+#     bash tests/run_container_tests.sh
+
+FROM docker.io/library/python:3.12-slim
+
+# ffmpeg is a hard requirement; the program refuses to start without it.
+# procps provides nproc, used when checking the reported core count.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# numpy is imported at module load time, so the menu needs it even though it
+# never does any audio work. faster-whisper is intentionally absent: the doctor
+# screen must report it as missing rather than crashing.
+RUN pip install --no-cache-dir "numpy>=1.24"
+
+WORKDIR /app
+COPY . /app
+
+# Anything left over from a Windows checkout would give a false result.
+RUN rm -rf __pycache__ videoscribe/__pycache__ .venv output_test
+
+# Run as an unprivileged user, matching how a real user would run this.
+RUN useradd --create-home --shell /bin/bash tester \
+    && chown -R tester:tester /app
+USER tester
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=utf-8
+
+CMD ["python", "videoscribe.py"]
