@@ -219,10 +219,11 @@ def command_run(args: argparse.Namespace) -> int:
     failures = 0
     for position, video in enumerate(videos, start=1):
         reporter = Reporter(total_steps=8 if args.describe else 5, quiet=args.quiet)
-        reporter.banner(f"VideoScribe  --  video {position} of {len(videos)}", video.name)
+        reporter.banner(t("app.video_n_of_m", position=position, total=len(videos)),
+                        video.name)
         try:
             result = process_video(video, config, options, reporter, machine)
-            reporter.banner("FINISHED", str(result.output_dir))
+            reporter.banner(t("app.finished"), str(result.output_dir))
             for path in result.files:
                 print(f"    {path.name}")
             for warning in result.warnings:
@@ -234,7 +235,7 @@ def command_run(args: argparse.Namespace) -> int:
             print("\n  Stopped. Re-run with --resume to carry on where this left off.\n")
             return 130
 
-    print(f"\n  Results in: {config.output_dir}\n")
+    print("\n  " + t("app.results_in", path=config.output_dir) + "\n")
     return 1 if failures else 0
 
 

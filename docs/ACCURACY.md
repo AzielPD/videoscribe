@@ -1,5 +1,7 @@
 # What to trust, and what to check
 
+**English** · [Español](ACCURACY.es.md)
+
 This page exists because the honest answer to "how accurate is it?" is "it depends,
 and here is exactly where it fails". If you are going to quote this output in front
 of a judge, a client or an editor, read this first.
@@ -43,7 +45,7 @@ language setting.
 **What it gets wrong, reliably:**
 
 - **Proper names.** Almost always. A person's name heard once will usually be wrong.
-- **Figures.** "4900" and "49" are easy to confuse; so are "el 24" and "el 25".
+- **Figures.** "1780" and "17" are easy to confuse; so are "el 12" and "el 13".
 - **Overlapping speech.** When two people talk at once, one of them is usually lost.
 - **Legal and technical vocabulary** not common in ordinary speech.
 - **Repetition artefacts.** The model occasionally emits the same sentence twice at a
@@ -126,20 +128,21 @@ produces sensible turn-taking.
 
 ### What it does well
 
-In testing on a real recording, it correctly read:
+In testing, it correctly read (the examples here are invented, not real case
+material):
 
-- `DEPARTAMENTO DE MERCADOS` lettering on a vehicle
+- `DIRECCIÓN DE PARQUES` lettering on a vehicle
 - A licence plate
-- A handwritten sign reading `Baños Entrada $5`
-- Embroidery on a uniform, quoted as partially legible: `"...Reyes Toral"`,
-  `"...partamento De Mercados"`
-- A discrepancy nobody asked it to look for: the uniform said `2022-2024` while a
-  wall sign said `2025-2027`
+- A handwritten sign reading `Renta De Cancha $40`
+- Embroidery on a uniform, quoted as partially legible: `"...ano de Tal"`,
+  `"...ección De Parques"`
+- A discrepancy nobody asked it to look for: the uniform said `2018-2021` while a
+  wall sign said `2022-2025`
 
 ### What to check
 
 - **Small print.** Badge names, document figures, anything at the edge of legibility.
-  The model reports these as partial (`"...yez Toral"`) when it is unsure, which is
+  The model reports these as partial (`"...ana de Tal"`) when it is unsure, which is
   the behaviour you want, but the fragment it does report may still be wrong.
 - **Anything it attributes to a specific person.** The model sees frames, not a
   continuous video, and cannot always tell who is speaking. Where the audio makes an

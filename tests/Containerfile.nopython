@@ -1,0 +1,25 @@
+# A machine with no Python at all.
+#
+# The point is to check that the launcher scripts fail with a sentence a
+# non-technical user can act on, rather than a shell error about a missing
+# binary. This is the very first thing a new user can get wrong, so the message
+# matters more than almost any other.
+#
+#     podman build -t videoscribe-nopython -f tests/Containerfile.nopython .
+
+FROM docker.io/library/debian:bookworm-slim
+
+# ffmpeg is present so the failure can only be about Python.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Debian slim genuinely has no python3, and we take care not to pull one in.
+WORKDIR /app
+COPY . /app
+
+RUN useradd --create-home --shell /bin/bash tester \
+    && chown -R tester:tester /app
+USER tester
+
+CMD ["bash", "run.sh"]

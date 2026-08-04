@@ -1,5 +1,7 @@
 # Configuration
 
+**English** · [Español](CONFIGURATION.es.md)
+
 Every setting can be changed in three places. Each one overrides the one before it:
 
 ```
@@ -24,6 +26,7 @@ built-in defaults  <  config.json  <  .env  <  command line
 | `transcription.compute_type` | `VIDEOSCRIBE_COMPUTE_TYPE` | — | `int8` |
 | `transcription.beam_size` | — | — | `5` |
 | `transcription.cpu_threads` | `VIDEOSCRIBE_CPU_THREADS` | — | `0` |
+| `transcription.workers` | `VIDEOSCRIBE_WORKERS` | — | `0` |
 
 **`model`** — `tiny`, `base`, `small`, `medium`, `large-v2`, `large-v3`. Bigger is
 more accurate and slower. Run `python videoscribe.py models` for timings measured on
@@ -40,6 +43,13 @@ and slightly more accurate.
 **`cpu_threads`** — `0` means use every core, up to 16. Lower it if you want to keep
 the machine responsive while it runs.
 
+**`workers`** — how many parts of the recording are transcribed at the same time.
+`0` works it out from the cores and the memory available; `1` disables splitting.
+Whisper's own threading stops helping past about four cores, so splitting recovers
+the rest: measured on 8 minutes of audio with 16 cores, 2:44 in one part against
+1:37 in four. Cuts land in silences, and a recording with no usable silence is
+transcribed in one piece instead.
+
 ---
 
 ## Speakers
@@ -48,14 +58,15 @@ the machine responsive while it runs.
 |---|---|---|---|
 | `speakers.count` | `VIDEOSCRIBE_SPEAKERS` | `--speakers` | `0` |
 | `speakers.max_count` | `VIDEOSCRIBE_MAX_SPEAKERS` | `--max-speakers` | `6` |
-| `speakers.label` | `VIDEOSCRIBE_SPEAKER_LABEL` | — | `Person` |
+| `speakers.label` | `VIDEOSCRIBE_SPEAKER_LABEL` | — | *(follows the language)* |
 
 **`count`** — how many people speak. `0` asks the tool to work it out, which is
 unreliable in noisy recordings. If you know the number, give it: the result is
 noticeably better. Combine with `--resume` to re-label without re-transcribing.
 
-**`label`** — the word before the number. `Person` gives `Person1`, `Person2`. Use
-`Speaker` for English output, `Persona` for Spanish.
+**`label`** — the word before the number. Left empty, it follows the interface
+language: `Speaker1` in English, `Persona1` in Spanish. Set it to any word to
+override that, for instance `Witness` or `Testigo`.
 
 See [`ACCURACY.md`](ACCURACY.md) for what to expect from this step.
 
@@ -104,6 +115,7 @@ the first one that is configured:
 | `anthropic` | `ANTHROPIC_API_KEY` in `.env` |
 | `openai` | `OPENAI_API_KEY` in `.env` |
 | `gemini` | `GEMINI_API_KEY` in `.env` |
+| `ollama` | [Ollama](https://ollama.com) running locally. No account, nothing sent over the internet, but slower and worse at small print. |
 
 Check what is available with `python videoscribe.py doctor`.
 

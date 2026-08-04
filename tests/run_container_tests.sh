@@ -191,6 +191,99 @@ check "end of input is handled without a traceback" \
 
 echo
 echo "======================================================================"
+echo " Missing pieces"
+echo "======================================================================"
+echo " A user's first run is the most likely to be broken, so each failure"
+echo " mode has to produce a sentence they can act on."
+echo
+
+# check_root <name> <stdin> <exit code> <pattern> [command...]
+# Same as check, but as root. Removing a root-owned binary to fake a missing
+# program is impossible as the unprivileged test user: the rm fails silently,
+# which made these checks pass for entirely the wrong reason.
+check_root() {
+    local name="$1" stdin="$2" want_code="$3" want_text="$4"
+    shift 4
+    local output code
+    output="$(printf '%s' "$stdin" | "$ENGINE" run --rm -i --user root "$IMAGE" "$@" 2>&1)"
+    code=$?
+    local problem=""
+    if [ "$want_code" != "any" ] && [ "$code" -ne "$want_code" ]; then
+        problem="exit code was $code, expected $want_code"
+    elif [ -n "$want_text" ] && ! grep -qi -- "$want_text" <<<"$output"; then
+        problem="output did not contain: $want_text"
+    fi
+    if [ -z "$problem" ]; then
+        printf '%s  PASS%s  %s
+' "$C_GREEN" "$C_OFF" "$name"
+        PASSED=$((PASSED + 1))
+    else
+        printf '%s  FAIL%s  %s
+' "$C_RED" "$C_OFF" "$name"
+        printf '%s        %s%s
+' "$C_DIM" "$problem" "$C_OFF"
+        sed 's/^/        | /' <<<"$output" | tail -20
+        FAILED=$((FAILED + 1))
+    fi
+}
+
+# check_in <image> <name> <stdin> <exit code> <pattern> [command...]
+check_in() {
+    local image="$1"; shift
+    local saved="$IMAGE"
+    IMAGE="$image"
+    check "$@"
+    IMAGE="$saved"
+}
+
+if "$ENGINE" build -q -t videoscribe-nopython \
+        -f "$REPO_ROOT/tests/Containerfile.nopython" "$REPO_ROOT" >/dev/null 2>&1; then
+    check_in videoscribe-nopython "run.sh explains that Python is missing" \
+        "" 1 "Python was not found" \
+        bash run.sh
+
+    check_in videoscribe-nopython "run.sh points at the installer" \
+        "" 1 "init.sh" \
+        bash run.sh
+else
+    echo "  SKIP  no-Python image could not be built"
+fi
+
+# The install offer now appears, so "3" declines it; the program then reports
+# the failure and exits 2. Run as root so the rm actually removes the binary.
+check_root "the menu explains that ffmpeg is missing"     "3
+" 2 "ffmpeg was not found"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
+
+check_root "the ffmpeg message names all three platforms"     "3
+" 2 "winget install Gyan.FFmpeg"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
+
+check_root "a missing ffmpeg is offered, not just reported"     "3
+" 2 "SHALL I INSTALL IT FOR YOU"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
+
+check_root "the portable route says it needs no permissions"     "3
+" 2 "no permissions needed"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
+
+check_root "accepting the portable download really installs it"     "2
+5
+" 0 "ffmpeg is ready"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
+
+check "doctor reports a missing package rather than crashing" \
+    "" 1 "pip install -r requirements.txt" \
+    python videoscribe.py doctor
+
+check "transcribing without faster-whisper says how to fix it" \
+    "" any "faster-whisper is not installed" \
+    python -c "
+from pathlib import Path
+from videoscribe.transcribe import transcribe
+try:
+    transcribe(Path('/nonexistent.wav'))
+except SystemExit as exc:
+    print(exc)
+"
+
+echo
+echo "======================================================================"
 echo " Language"
 echo "======================================================================"
 
@@ -289,27 +382,40 @@ n
 " 0 "Start now" \
     bash -c "$MAKE_CLIP && python videoscribe.py"
 
-# Option 2 needs a video before it gets as far as checking for an image model,
-# so this only makes sense once the inbox has something in it.
-check "option 2 explains that no image model is configured" \
-    "2
+# Option 2 needs a video before it reaches the image-model check, so these only
+# make sense once the inbox has something in it. The flow is: menu option 2 ->
+# the "how should the video be described" screen -> a choice there -> and only
+# then the fall-back question.
+check "option 2 offers every way to describe the video"     "2
+4
 n
-" 1 "image-capable model" \
-    bash -c "$MAKE_CLIP && python videoscribe.py"
+" 1 "HOW SHOULD THE VIDEO BE DESCRIBED"     bash -c "$MAKE_CLIP && python videoscribe.py"
 
-check "option 2 offers to continue with the transcript only" \
-    "2
+check "the local, private option is offered first"     "2
+4
 n
-" 1 "Continue with the transcript only" \
-    bash -c "$MAKE_CLIP && python videoscribe.py"
+" 1 "On this computer, with Ollama"     bash -c "$MAKE_CLIP && python videoscribe.py"
 
-check "option 2 falls back to a transcript when the user accepts" \
-    "2
+check "pasting an API key is offered"     "2
+4
+n
+" 1 "Paste an API key"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
+check "skipping the description offers a transcript instead"     "2
+4
+n
+" 1 "Continue with the transcript only"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
+check "accepting the fall-back reaches the model chooser"     "2
+4
 y
 3
 n
-" 0 "CHOOSE HOW ACCURATE" \
-    bash -c "$MAKE_CLIP && python videoscribe.py"
+" 0 "CHOOSE HOW ACCURATE"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
+check "Ollama explains itself when it is not installed"     "2
+1
+" any "ollama.com"     bash -c "$MAKE_CLIP && python videoscribe.py"
 
 echo
 echo "======================================================================"

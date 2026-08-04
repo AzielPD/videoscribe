@@ -2,10 +2,10 @@ YOUR RESULTS APPEAR IN THIS FOLDER
 ======================================================================
 
 Each video gets its own subfolder, named after the video file. For a
-recording called VID_20250723_130058.mp4 you get:
+recording called VID_20240115_101500.mp4 you get:
 
     output/
-      VID_20250723_130058/
+      VID_20240115_101500/
         00_READ_ME_FIRST.txt          a guide to these files
         01_audio.mp3                  the sound on its own
         02_transcript.txt             who said what, with times
@@ -19,14 +19,16 @@ recording called VID_20250723_130058.mp4 you get:
 WHERE TO START
 ----------------------------------------------------------------------
 
-Open 02_transcript.txt. It looks like this:
+Open 02_transcript.txt. It looks like this (an invented example, not real
+case material):
 
-    [00:12:00] Person1:
-        ...no tienen por que cobrarle, le tienen que cobrar a partir de
-        que muestre su recibo.
+    [00:03:48] Person1:
+        En el recibo me aparecen dos mil pesos de recargo y en la
+        ventanilla me dijeron otra cifra.
 
-    [00:12:16] Person2:
-        Nada mas deben el 25, paguen el 25.
+    [00:04:05] Person2:
+        El recargo se calcula por trimestre vencido. Le imprimo el
+        desglose.
 
 The number in square brackets is the position in the original video.
 Type it into your video player and you land on that exact moment.
@@ -49,7 +51,7 @@ BEFORE YOU RELY ON ANY OF THIS
 These files were produced automatically. They contain mistakes.
 
   - Names are almost always wrong the first time they are heard.
-  - Figures get confused: 4900 and 49, "el 24" and "el 25".
+  - Figures get confused: 1780 and 17, "el 12" and "el 13".
   - Speaker labels can split one person into two. When the program is
     unsure it says so, in the file header and on screen while it runs.
   - The visual description can misread small print on a badge or a

@@ -6,6 +6,7 @@ can tell what to read in what order:
 ===================================  ===========================================
 File                                 Contents
 ===================================  ===========================================
+``00_READ_ME_FIRST.txt``             a plain-language guide to the folder
 ``01_audio.mp3``                     the sound track on its own
 ``02_transcript.txt``                who said what, with timecodes
 ``03_subtitles.srt``                 the same, as subtitles for a video player
@@ -14,6 +15,10 @@ File                                 Contents
 ``data/transcript.json``             machine-readable, used to re-run steps
 ``data/manifest.json``               what was produced, with what settings
 ===================================  ===========================================
+
+Everything a reader sees here is translated. These documents get handed to
+other people -- a colleague, a client, a court -- so a Spanish run must not
+produce Spanish speech under an English heading.
 
 Text files are written as UTF-8 with a byte-order mark, because Windows Notepad
 and Excel misread accented characters without one.
@@ -25,18 +30,12 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .i18n import t
 from .timecode import format_srt_timecode, format_timecode
 from .transcribe import Transcript, merge_consecutive
 
 ENCODING_WITH_BOM = "utf-8-sig"
-
-DISCLAIMER = (
-    "This file was produced automatically by speech recognition and, where a\n"
-    "          visual description is included, by an image model. Both make mistakes.\n"
-    "          Check every figure, name and job title against the recording before\n"
-    "          relying on it. Each timecode points at the moment in the video where\n"
-    "          the statement can be verified."
-)
+RULE = "=" * 70
 
 
 def _write_text(path: Path, text: str) -> Path:
@@ -45,12 +44,33 @@ def _write_text(path: Path, text: str) -> Path:
     return path
 
 
+def _now() -> str:
+    return datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def _wrap(text: str, width: int, indent: str) -> str:
+    """Wrap a long value so the header block stays inside a terminal width."""
+    words, lines, current = text.split(), [], ""
+    for word in words:
+        if len(current) + len(word) + 1 > width:
+            lines.append(current)
+            current = word
+        else:
+            current = f"{current} {word}".strip()
+    if current:
+        lines.append(current)
+    return f"\n{indent}".join(lines)
+
+
 def _header(title: str, rows: list[tuple[str, str]]) -> str:
     """A fixed-width header block shared by the text outputs."""
-    line = "=" * 70
     width = max(len(label) for label, _ in rows)
-    body = "\n".join(f"{label.ljust(width)} : {value}" for label, value in rows)
-    return f"{line}\n{title}\n{line}\n{body}\n{line}\n\n"
+    indent = " " * (width + 3)
+    body = "\n".join(
+        f"{label.ljust(width)} : {_wrap(value, 68 - width, indent)}"
+        for label, value in rows
+    )
+    return f"{RULE}\n{title}\n{RULE}\n{body}\n{RULE}\n\n"
 
 
 def write_transcript_txt(
@@ -67,29 +87,29 @@ def write_transcript_txt(
     below always refer to the source video, never to the extracted stretch, so
     they can be typed straight into a player.
     """
-    rows = [("Source file", source_name)]
+    rows = [(t("file.source"), source_name)]
     if span and span[0] > 0:
-        rows.append(("Covers", f"{format_timecode(span[0])} to {format_timecode(span[1])} "
-                               "of the source video"))
-    rows.append(("Duration", format_timecode(transcript.duration)))
-
-    header = _header(
-        "TRANSCRIPT WITH SPEAKER IDENTIFICATION",
-        rows + [
-            ("Language", f"{transcript.language} (confidence {transcript.language_probability:.2f})"),
-            ("Model", transcript.model),
-            ("Speakers found", str(speaker_count)),
-            ("Generated", datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")),
-            ("Please note", DISCLAIMER),
-        ],
-    )
+        rows.append((
+            t("file.covers"),
+            t("file.covers_value",
+              start=format_timecode(span[0]), end=format_timecode(span[1])),
+        ))
+    rows += [
+        (t("file.duration"), format_timecode(transcript.duration)),
+        (t("file.language"), t("file.language_value", code=transcript.language,
+                               confidence=f"{transcript.language_probability:.2f}")),
+        (t("file.model"), transcript.model),
+        (t("file.speakers_found"), str(speaker_count)),
+        (t("file.generated"), _now()),
+        (t("file.please_note"), t("file.disclaimer")),
+    ]
 
     blocks = []
     for turn in merge_consecutive(transcript.segments):
         speaker = f"{speaker_label}{turn.get('speaker', 1)}"
         blocks.append(f"[{format_timecode(turn['start'])}] {speaker}:\n    {turn['text']}\n")
 
-    return _write_text(path, header + "\n".join(blocks))
+    return _write_text(path, _header(t("file.transcript_title"), rows) + "\n".join(blocks))
 
 
 def write_subtitles_srt(path: Path, transcript: Transcript, speaker_label: str) -> Path:
@@ -131,28 +151,25 @@ def write_narrative_txt(
     span: tuple[float, float],
 ) -> Path:
     """The continuous written account of the video."""
-    header = _header(
-        "WRITTEN ACCOUNT OF THE VIDEO (sound and image)",
-        [
-            ("Source file", source_name),
-            ("Covers", f"{format_timecode(span[0])} to {format_timecode(span[1])}"),
-            ("Based on", f"{frame_count} frames (one every {frame_interval}s) "
-                         f"and {segment_count} speech segments"),
-            ("Described by", backend_name),
-            ("Generated", datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M")),
-            ("Please note", DISCLAIMER),
-        ],
-    )
-    return _write_text(path, header + account.strip() + "\n")
+    rows = [
+        (t("file.source"), source_name),
+        (t("file.covers"), t("file.covers_value",
+                             start=format_timecode(span[0]), end=format_timecode(span[1]))),
+        (t("file.based_on"), t("file.based_on_value", frames=frame_count,
+                               interval=frame_interval, segments=segment_count)),
+        (t("file.described_by"), backend_name),
+        (t("file.generated"), _now()),
+        (t("file.please_note"), t("file.disclaimer")),
+    ]
+    return _write_text(path, _header(t("file.narrative_title"), rows) + account.strip() + "\n")
 
 
 def write_narrative_markdown(path: Path, source_name: str, sections: list[tuple[float, str]]) -> Path:
     """The account split into sections, one per window, each with its timecode."""
     lines = [
-        f"# Written account by section - {source_name}",
+        f"# {t('file.sections_title', name=source_name)}",
         "",
-        "Each section covers one stretch of the recording. The heading is the time "
-        "at which the stretch begins.",
+        t("file.sections_intro"),
         "",
     ]
     for start, paragraph in sections:
@@ -169,28 +186,35 @@ def write_manifest(path: Path, data: dict) -> Path:
     return path
 
 
-def write_readme(path: Path, files: list[tuple[str, str]]) -> Path:
+def write_readme(path: Path, include_narrative: bool) -> Path:
     """A plain-language guide dropped into each result folder."""
-    lines = [
-        "WHAT IS IN THIS FOLDER",
-        "=" * 70,
-        "",
+    files = [
+        ("01_audio.mp3", t("readme.file_audio")),
+        ("02_transcript.txt", t("readme.file_transcript")),
+        ("03_subtitles.srt", t("readme.file_subtitles")),
     ]
-    width = max((len(name) for name, _ in files), default=20)
-    for name, description in files:
-        lines.append(f"  {name.ljust(width)}  {description}")
+    if include_narrative:
+        files += [
+            ("04_narrative.txt", t("readme.file_narrative")),
+            ("05_narrative_by_section.md", t("readme.file_sections")),
+        ]
+    files += [
+        ("data/", t("readme.file_data")),
+        ("work/", t("readme.file_work")),
+    ]
+
+    width = max(len(name) for name, _ in files)
+    lines = [t("readme.title"), RULE, ""]
+    lines += [f"  {name.ljust(width)}  {description}" for name, description in files]
     lines += [
         "",
         "-" * 70,
-        "IMPORTANT",
+        t("readme.important"),
         "",
-        "These files were produced automatically. Speech recognition mishears",
-        "words, especially names and numbers, and the visual description can",
-        "misread small print. Before relying on any statement, open the video at",
-        "the timecode shown in square brackets and confirm it yourself.",
+        _wrap(t("readme.warning"), 68, ""),
         "",
-        "The 'work' folder holds temporary files and can be deleted.",
-        "The 'data' folder is needed if you want to re-run a step later.",
+        t("readme.work_folder"),
+        t("readme.data_folder"),
         "",
     ]
     return _write_text(path, "\n".join(lines))

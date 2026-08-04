@@ -7,7 +7,7 @@ or the terminal cannot handle it.
 Typical output::
 
     ============================================================
-     VideoScribe  --  VID_20250723_130058.mp4
+     VideoScribe  --  VID_20240115_101500.mp4
     ============================================================
 
     [1/4] Reading the video file

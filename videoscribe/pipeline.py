@@ -28,11 +28,12 @@ from .config import Config
 from .diarize import diarize
 from .i18n import t
 from .narrate import build_windows, narrate_window, synthesise
+from .parallel import plan_worker_count, threads_per_worker
 from .progress import Reporter
 from .system import MachineProfile, estimate_runtime, profile_machine
 from .timecode import format_duration, format_timecode, parse_timecode
 from .tools import find_ffmpeg
-from .transcribe import Transcript, summarise, transcribe
+from .transcribe import Transcript, summarise, transcribe_in_parallel
 from .vision import DEFAULT_MODELS, VisionUnavailable, select_backend
 
 VIDEO_EXTENSIONS = {
@@ -78,7 +79,7 @@ def find_videos(folder: Path) -> list[Path]:
 def output_folder_for(video: Path, output_root: Path) -> Path:
     """Result folder for one video: ``output/<video file name without extension>``.
 
-    Recordings from phones are usually already named ``VID_20250723_130058``,
+    Recordings from phones are usually already named ``VID_20240115_101500``,
     which makes a good folder name. Anything else keeps its own stem, so the
     link back to the original file is never lost.
     """
@@ -167,17 +168,30 @@ def process_video(
         reporter.detail(t("detail.reusing_transcript", count=len(transcript.segments)))
         # Stored segment times are already relative to the source video.
     else:
+        # Splitting the recording across concurrent workers beats giving one
+        # worker every thread: whisper's own threading flattens out past about
+        # four cores, so the rest would otherwise sit idle.
+        workers = plan_worker_count(machine, config.model, span_length, config.workers)
+        threads = threads_per_worker(machine, workers) if workers > 1 else config.cpu_threads
+
         reporter.detail(t("detail.model_threads", model=config.model,
-                          language=config.language, threads=config.cpu_threads))
+                          language=config.language, threads=threads))
+        if workers > 1:
+            reporter.detail(t("detail.parallel_parts", parts=workers, threads=threads))
         reporter.detail(t("detail.first_download"))
+
         with reporter.bar(span_length, unit="time") as bar:
-            transcript = transcribe(
+            transcript = transcribe_in_parallel(
                 wav_path,
+                ffmpeg=ffmpeg,
+                workers=workers,
+                work_dir=work_dir,
                 model_size=config.model,
                 language=config.language,
                 compute_type=config.compute_type,
                 beam_size=config.beam_size,
-                cpu_threads=config.cpu_threads,
+                cpu_threads=threads,
+                sample_rate=config.sample_rate,
                 on_progress=lambda done, total: bar.update(done),
             )
             bar.close(t("bar.transcribed"))
@@ -363,21 +377,10 @@ def _finish(
     backend_name: str | None,
 ) -> None:
     """Write the folder guide and manifest, then tidy up temporary files."""
-    entries = [
-        ("01_audio.mp3", "The sound of the video on its own."),
-        ("02_transcript.txt", "Who said what, with the time of each turn."),
-        ("03_subtitles.srt", "The same text as subtitles; open it with the video."),
-    ]
-    if backend_name:
-        entries += [
-            ("04_narrative.txt", "A written account of what happens in the video."),
-            ("05_narrative_by_section.md", "The same account, split into short sections."),
-        ]
-    entries += [
-        ("data/", "Machine-readable files. Keep these to re-run a step later."),
-        ("work/", "Temporary files. Safe to delete."),
-    ]
-    writers.write_readme(result.output_dir / "00_READ_ME_FIRST.txt", entries)
+    writers.write_readme(
+        result.output_dir / "00_READ_ME_FIRST.txt",
+        include_narrative=bool(backend_name),
+    )
 
     writers.write_manifest(
         result.output_dir / "data" / "manifest.json",

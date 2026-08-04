@@ -29,9 +29,21 @@ if not errorlevel 1 (
     goto :run
 )
 
+REM Offer to fix it rather than just reporting it: someone who has never used a
+REM terminal has no way to act on "run init.cmd first".
 echo.
 echo  Python was not found on this computer.
-echo  Run init.cmd first to install it.
+echo  VideoScribe needs it, and the setup can install it for you.
+echo.
+choice /c YN /n /m "  Run the setup now? [Y,N]: "
+if errorlevel 2 goto :nosetup
+echo.
+call "%~dp0init.cmd"
+exit /b %ERRORLEVEL%
+
+:nosetup
+echo.
+echo  When you are ready, double-click  init.cmd
 echo.
 pause
 exit /b 1

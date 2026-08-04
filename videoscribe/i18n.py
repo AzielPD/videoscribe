@@ -35,8 +35,16 @@ LANGUAGE_NAMES = {
 # has not chosen otherwise. Someone reading a Spanish menu almost certainly
 # wants a Spanish account of their video.
 LANGUAGE_DEFAULTS = {
-    "en": {"transcription.language": "en", "narration.output_language": "English"},
-    "es": {"transcription.language": "es", "narration.output_language": "Spanish"},
+    "en": {
+        "transcription.language": "en",
+        "narration.output_language": "English",
+        "speakers.label": "Speaker",
+    },
+    "es": {
+        "transcription.language": "es",
+        "narration.output_language": "Spanish",
+        "speakers.label": "Persona",
+    },
 }
 
 _current = DEFAULT_LANGUAGE
@@ -478,6 +486,284 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "duration.minutes": {"en": "about {value} minutes", "es": "unos {value} minutos"},
     "duration.hours": {"en": "about {value} hours", "es": "unas {value} horas"},
+
+    "detail.transcript_summary": {
+        "en": "{count} segments, language {language} "
+              "(confidence {confidence}), duration {duration}",
+        "es": "{count} segmentos, idioma {language} "
+              "(confianza {confidence}), duracion {duration}",
+    },
+
+    # --- Output files -----------------------------------------------------
+    # These appear inside the documents the user hands to someone else, so
+    # they must follow the chosen language just as the menus do.
+    "file.transcript_title": {
+        "en": "TRANSCRIPT WITH SPEAKER IDENTIFICATION",
+        "es": "TRANSCRIPCION CON IDENTIFICACION DE PERSONAS",
+    },
+    "file.narrative_title": {
+        "en": "WRITTEN ACCOUNT OF THE VIDEO (sound and image)",
+        "es": "RELATO ESCRITO DEL VIDEO (audio e imagen)",
+    },
+    "file.source": {"en": "Source file", "es": "Archivo de origen"},
+    "file.covers": {"en": "Covers", "es": "Abarca"},
+    "file.covers_value": {
+        "en": "{start} to {end} of the source video",
+        "es": "de {start} a {end} del video original",
+    },
+    "file.duration": {"en": "Duration", "es": "Duracion"},
+    "file.language": {"en": "Language", "es": "Idioma"},
+    "file.language_value": {
+        "en": "{code} (confidence {confidence})",
+        "es": "{code} (confianza {confidence})",
+    },
+    "file.model": {"en": "Model", "es": "Modelo"},
+    "file.speakers_found": {"en": "Speakers found", "es": "Personas detectadas"},
+    "file.generated": {"en": "Generated", "es": "Generado"},
+    "file.please_note": {"en": "Please note", "es": "Aviso"},
+    "file.based_on": {"en": "Based on", "es": "Se basa en"},
+    "file.based_on_value": {
+        "en": "{frames} frames (one every {interval}s) and {segments} speech segments",
+        "es": "{frames} fotogramas (uno cada {interval}s) y {segments} segmentos de voz",
+    },
+    "file.described_by": {"en": "Described by", "es": "Descrito por"},
+    "file.disclaimer": {
+        "en": "This file was produced automatically by speech recognition and, "
+              "where a visual description is included, by an image model. Both "
+              "make mistakes. Check every figure, name and job title against "
+              "the recording before relying on it. Each timecode points at the "
+              "moment in the video where the statement can be verified.",
+        "es": "Este archivo se genero automaticamente con reconocimiento de voz "
+              "y, cuando incluye descripcion visual, con un modelo de imagen. "
+              "Ambos se equivocan. Verifica cada cifra, nombre y cargo contra la "
+              "grabacion antes de darle uso. Cada marca de tiempo apunta al "
+              "momento del video donde se puede comprobar lo afirmado.",
+    },
+    "file.sections_title": {
+        "en": "Written account by section - {name}",
+        "es": "Relato por tramos - {name}",
+    },
+    "file.sections_intro": {
+        "en": "Each section covers one stretch of the recording. The heading is "
+              "the time at which the stretch begins.",
+        "es": "Cada tramo cubre un fragmento de la grabacion. El encabezado es "
+              "el momento en que empieza ese fragmento.",
+    },
+
+    # --- Folder guide (00_READ_ME_FIRST.txt) ------------------------------
+    "readme.title": {
+        "en": "WHAT IS IN THIS FOLDER", "es": "QUE HAY EN ESTA CARPETA",
+    },
+    "readme.important": {"en": "IMPORTANT", "es": "IMPORTANTE"},
+    "readme.warning": {
+        "en": "These files were produced automatically. Speech recognition "
+              "mishears words, especially names and numbers, and the visual "
+              "description can misread small print. Before relying on any "
+              "statement, open the video at the timecode shown in square "
+              "brackets and confirm it yourself.",
+        "es": "Estos archivos se generaron automaticamente. El reconocimiento "
+              "de voz confunde palabras, sobre todo nombres y cifras, y la "
+              "descripcion visual puede leer mal la letra chica. Antes de "
+              "apoyarte en cualquier afirmacion, abre el video en la marca de "
+              "tiempo entre corchetes y compruebalo tu mismo.",
+    },
+    "readme.work_folder": {
+        "en": "The 'work' folder holds temporary files and can be deleted.",
+        "es": "La carpeta 'work' tiene archivos temporales y se puede borrar.",
+    },
+    "readme.data_folder": {
+        "en": "The 'data' folder is needed if you want to re-run a step later.",
+        "es": "La carpeta 'data' hace falta si quieres rehacer un paso despues.",
+    },
+    "readme.file_audio": {
+        "en": "The sound of the video on its own.",
+        "es": "El sonido del video, por separado.",
+    },
+    "readme.file_transcript": {
+        "en": "Who said what, with the time of each turn.",
+        "es": "Quien dijo que, con el minuto de cada intervencion.",
+    },
+    "readme.file_subtitles": {
+        "en": "The same text as subtitles; open it with the video.",
+        "es": "El mismo texto como subtitulos; abrelo junto con el video.",
+    },
+    "readme.file_narrative": {
+        "en": "A written account of what happens in the video.",
+        "es": "Un relato escrito de lo que ocurre en el video.",
+    },
+    "readme.file_sections": {
+        "en": "The same account, split into short sections.",
+        "es": "El mismo relato, dividido en tramos cortos.",
+    },
+    "readme.file_data": {
+        "en": "Machine-readable files. Keep these to re-run a step later.",
+        "es": "Archivos para la maquina. Conservalos para rehacer un paso.",
+    },
+    "readme.file_work": {
+        "en": "Temporary files. Safe to delete.",
+        "es": "Archivos temporales. Se pueden borrar.",
+    },
+
+    # --- Offering to install a missing program ----------------------------
+    "install.offer_header": {
+        "en": "SHALL I INSTALL IT FOR YOU?",
+        "es": "QUIERES QUE LO INSTALE?",
+    },
+    "install.explain": {
+        "en": "ffmpeg is the program that reads video files. VideoScribe cannot "
+              "do anything without it. It is free and open source.",
+        "es": "ffmpeg es el programa que lee los archivos de video. VideoScribe "
+              "no puede hacer nada sin el. Es gratuito y de codigo abierto.",
+    },
+    "install.option_none": {
+        "en": "Not now, I will install it myself",
+        "es": "Ahora no, lo instalo yo mismo",
+    },
+    "install.needs_admin": {
+        "en": "(needs administrator permission)",
+        "es": "(necesita permiso de administrador)",
+    },
+    "install.working": {"en": "Installing...", "es": "Instalando..."},
+    "install.success": {
+        "en": "ffmpeg is ready. Carrying on.",
+        "es": "ffmpeg esta listo. Continuamos.",
+    },
+    "install.failed": {
+        "en": "That did not work. Try the other option, or install ffmpeg by hand.",
+        "es": "No funciono. Prueba la otra opcion, o instala ffmpeg a mano.",
+    },
+    "install.downloading": {
+        "en": "Downloading  {done} MB of {total} MB",
+        "es": "Descargando  {done} MB de {total} MB",
+    },
+    "install.no_options": {
+        "en": "This computer has no package manager and no portable build is "
+              "available for it, so ffmpeg has to be installed by hand.",
+        "es": "Esta computadora no tiene gestor de paquetes y no hay una version "
+              "portable para ella, asi que ffmpeg se tiene que instalar a mano.",
+    },
+
+    # --- "when to use it" column in the model chooser ---------------------
+    "prompt.yes_letter": {"en": "y", "es": "s"},
+    "prompt.no_letter": {"en": "n", "es": "n"},
+    "model.col_when": {"en": "when to use it", "es": "cuando usarlo"},
+    "model.when_tiny": {
+        "en": "a quick look, to check the sound is usable",
+        "es": "un vistazo rapido, para ver si el audio sirve",
+    },
+    "model.when_base": {"en": "still rough", "es": "todavia tosco"},
+    "model.when_small": {"en": "good balance", "es": "buen equilibrio"},
+    "model.when_medium": {
+        "en": "clearly better with names and figures",
+        "es": "claramente mejor con nombres y cifras",
+    },
+    "model.when_large": {
+        "en": "the best there is; heavy without a graphics card",
+        "es": "lo mejor que hay; pesado sin tarjeta grafica",
+    },
+    "model.measured_for": {
+        "en": "Times are measured for your video ({duration}) on this computer.",
+        "es": "Los tiempos estan medidos para tu video ({duration}) en esta computadora.",
+    },
+
+    # --- Setting up an image model ----------------------------------------
+    "vision.header": {
+        "en": "HOW SHOULD THE VIDEO BE DESCRIBED?",
+        "es": "COMO SE DEBE DESCRIBIR EL VIDEO?",
+    },
+    "vision.explain": {
+        "en": "Reading the picture needs a model that can see images. The "
+              "transcript never needs this; only the description does.",
+        "es": "Leer la imagen necesita un modelo que vea fotos. La transcripcion "
+              "nunca lo necesita; solo la descripcion.",
+    },
+    "vision.option_local": {
+        "en": "On this computer, with Ollama",
+        "es": "En esta computadora, con Ollama",
+    },
+    "vision.option_local_detail": {
+        "en": "free, private, nothing leaves the machine; slower and worse at "
+              "small print",
+        "es": "gratis, privado, nada sale de la computadora; mas lento y peor "
+              "con la letra chica",
+    },
+    "vision.option_key": {
+        "en": "Paste an API key",
+        "es": "Pegar una clave de API",
+    },
+    "vision.option_key_detail": {
+        "en": "best quality and much faster; the provider charges per use and "
+              "the frames are sent to them",
+        "es": "mejor calidad y mucho mas rapido; el proveedor cobra por uso y "
+              "los fotogramas se le envian",
+    },
+    "vision.option_claude": {
+        "en": "Install the Claude Code command",
+        "es": "Instalar el comando de Claude Code",
+    },
+    "vision.option_claude_detail": {
+        "en": "included in a Claude subscription, no API key needed",
+        "es": "incluido en una suscripcion de Claude, sin clave de API",
+    },
+    "vision.option_skip": {
+        "en": "Skip it, transcript only",
+        "es": "Omitirlo, solo transcripcion",
+    },
+    "vision.choose_provider": {
+        "en": "Which provider is the key from?",
+        "es": "De que proveedor es la clave?",
+    },
+    "vision.paste_key": {
+        "en": "Paste the key and press Enter (it will not be shown)",
+        "es": "Pega la clave y presiona Enter (no se mostrara)",
+    },
+    "vision.key_saved": {
+        "en": "Saved in .env. It stays on this computer and is never committed.",
+        "es": "Guardada en .env. Se queda en esta computadora y nunca se sube.",
+    },
+    "vision.key_empty": {"en": "Nothing was pasted.", "es": "No se pego nada."},
+    "vision.key_where": {
+        "en": "Get one at: {url}",
+        "es": "Consiguela en: {url}",
+    },
+    "vision.ollama_missing": {
+        "en": "Ollama is not installed. It is a free program that runs the model "
+              "on this computer. Install it from https://ollama.com and come back.",
+        "es": "Ollama no esta instalado. Es un programa gratuito que corre el "
+              "modelo en esta computadora. Instalalo desde https://ollama.com "
+              "y vuelve.",
+    },
+    "vision.ollama_model": {
+        "en": "Model for this computer: {model} (about {size} GB to download)",
+        "es": "Modelo para esta computadora: {model} (unos {size} GB de descarga)",
+    },
+    "vision.ollama_slow": {
+        "en": "Roughly {minutes} minutes to describe this video on a CPU, against "
+              "a few minutes with a cloud model. It reads large signs well and "
+              "small embroidered text poorly.",
+        "es": "Unos {minutes} minutos para describir este video en CPU, contra "
+              "unos pocos con un modelo en la nube. Lee bien los letreros "
+              "grandes y mal el texto bordado pequeno.",
+    },
+    "vision.ollama_pull": {
+        "en": "Download the model now? Ollama does it once.",
+        "es": "Descargar el modelo ahora? Ollama lo hace una sola vez.",
+    },
+    "vision.ollama_ready": {
+        "en": "Ready. The video will be described on this computer.",
+        "es": "Listo. El video se describira en esta computadora.",
+    },
+    "vision.found": {
+        "en": "Found and ready: {backend}",
+        "es": "Encontrado y listo: {backend}",
+    },
+
+    "detail.parallel_parts": {
+        "en": "Splitting into {parts} parts transcribed at the same time, "
+              "{threads} threads each",
+        "es": "Se divide en {parts} partes transcritas al mismo tiempo, "
+              "{threads} hilos cada una",
+    },
 
 }
 

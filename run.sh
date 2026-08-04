@@ -23,9 +23,24 @@ elif command -v python3 >/dev/null 2>&1; then
 elif command -v python >/dev/null 2>&1; then
     PYTHON="python"
 else
+    # Offer to fix it rather than just reporting it: someone who has never
+    # used a terminal has no way to act on "run ./init.sh first".
     echo
     echo "  Python was not found on this computer."
-    echo "  Run ./init.sh first to install it."
+    echo "  VideoScribe needs it, and the setup script can install it for you."
+    echo
+    if [ -t 0 ]; then
+        printf '  Run the setup now? (y/n) [y]: '
+        read -r answer || answer=""
+        case "${answer:-y}" in
+            [YySs]*)
+                echo
+                exec "$REPO_ROOT/init.sh"
+                ;;
+        esac
+    fi
+    echo
+    echo "  When you are ready, run:  ./init.sh"
     echo
     exit 1
 fi

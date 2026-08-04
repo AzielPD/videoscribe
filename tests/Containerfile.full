@@ -1,0 +1,38 @@
+# The full stack on Linux: Python, ffmpeg, numpy and faster-whisper.
+#
+# This is the only image that can actually transcribe, so it is used to prove
+# the pipeline works end to end on Linux and not only on the machine it was
+# written on. No model is baked in: the first run downloads `tiny` (75 MB),
+# which also exercises the "model is not here yet" path for real.
+#
+#     podman build -t videoscribe-full -f tests/Containerfile.full .
+#     podman run --rm videoscribe-full python videoscribe.py run --file sample.mp4
+#
+# Bigger and slower to build than the default test image, so it is kept
+# separate and only run when the processing path itself needs checking.
+
+FROM docker.io/library/python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+
+# Installed before the source is copied, so editing code does not invalidate
+# this layer and force a re-download of several hundred megabytes.
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . /app
+RUN rm -rf __pycache__ videoscribe/__pycache__ .venv output_test
+
+RUN useradd --create-home --shell /bin/bash tester \
+    && chown -R tester:tester /app
+USER tester
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=utf-8 \
+    HOME=/home/tester
+
+CMD ["python", "videoscribe.py", "doctor"]

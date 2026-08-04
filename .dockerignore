@@ -26,6 +26,9 @@ output_test/
 *.wav
 *.jpg
 
+# A portable ffmpeg downloaded on the host; the image installs its own.
+tools/
+
 # Python build artefacts and environments.
 __pycache__/
 *.py[cod]

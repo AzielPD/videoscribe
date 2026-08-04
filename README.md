@@ -103,24 +103,27 @@ Everything lands in `output/<name of your video>/`:
 
 ## What the output looks like
 
+The examples below are invented, not real case material.
+
 **`02_transcript.txt`**
 
 ```
-[00:12:00] Person1:
-    ...no tienen por qué cobrarle, le tienen que cobrar a partir de que
-    muestre su recibo, es lo que se les está pidiendo ahorita.
+[00:03:48] Person1:
+    En el recibo me aparecen dos mil pesos de recargo y en la ventanilla
+    me dijeron otra cifra; quiero que me expliquen de dónde sale.
 
-[00:12:16] Person2:
-    Nada más deben el 25, paguen el 25.
+[00:04:05] Person2:
+    El recargo se calcula por trimestre vencido, señora. Le imprimo el
+    desglose y si está mal, aquí mismo se lo corregimos.
 ```
 
 **`04_narrative.txt`** — this is the part that makes it more than a transcript:
 
-> Frente al mural aparece sentada una mujer de cabello corto castaño con chamarra
-> rosa palo sobre un chaleco vino. El bordado se alcanza a leer parcialmente como
-> "...Reyes Toral", "...partamento De Mercados" y "H. AYUNTAMIENTO DE CHIMALHUACÁN
-> 2022-2024" `[00:12:40]`. En `[00:08:40]` se ve un papel con anotaciones
-> manuscritas que aparentemente muestran cifras como "$3900", coincidiendo con la
+> Frente a la ventanilla aparece sentada una persona con playera blanca bajo un
+> chaleco verde olivo. El bordado se alcanza a leer parcialmente como
+> "...ano de Tal", "...ección De Parques" y "H. AYUNTAMIENTO DE VILLA EJEMPLO
+> 2018-2021" `[00:04:20]`. En `[00:06:05]` se ve un papel con anotaciones
+> manuscritas que aparentemente muestran cifras como "$1,780", coincidiendo con la
 > conversación sobre montos.
 
 Note what it is doing: quoting the text it can read, saying "parcialmente" and
@@ -150,6 +153,13 @@ Rough guide for **one hour of video on a 16-core laptop with no graphics card**:
 
 A graphics card makes this several times faster. VideoScribe detects one
 automatically and recommends a larger model when your machine can handle it.
+
+**On a multi-core CPU the recording is split and transcribed in parallel.** Whisper's
+own threading stops helping past about four cores, so the rest would sit idle. The
+cuts land in silences, never mid-word, and a recording with no usable silence is
+transcribed in one piece instead. Measured on 8 minutes of audio, 16 cores:
+2:44 in one part, 1:41 in two, 1:37 in four. It happens automatically; set
+`transcription.workers` to 1 to turn it off.
 
 ---
 
@@ -182,7 +192,7 @@ in a noisy room. See [`docs/ACCURACY.md`](docs/ACCURACY.md) for the detail.
 ## Describing what is on screen
 
 The transcript needs nothing but your own computer. The **visual description** needs
-an image-capable model. You have four options, and any one of them works:
+an image-capable model. You have five options, and any one of them works:
 
 | Option | What you need | Cost |
 |---|---|---|
@@ -190,6 +200,17 @@ an image-capable model. You have four options, and any one of them works:
 | **Anthropic API** | `ANTHROPIC_API_KEY` in your `.env` | Pay per use |
 | **OpenAI API** | `OPENAI_API_KEY` in your `.env` | Pay per use |
 | **Google Gemini** | `GEMINI_API_KEY` in your `.env` | Free tier available |
+| **A model on your own computer** | [Ollama](https://ollama.com) installed | Free, and nothing leaves the machine |
+
+If none is set up, the menu offers all four and can paste an API key into `.env` for
+you, or download the local model. You never have to edit a file by hand.
+
+**About the local option.** It is the only one that sends nothing over the internet,
+which may decide the matter for confidential footage. Be aware of the trade: a 3-billion
+parameter model reads a large sign reliably but is markedly worse at the small
+embroidered text on a uniform, and on a CPU it takes roughly 25 seconds per frame
+against a second or two for a cloud model. The menu tells you the estimate for your
+video before you commit.
 
 VideoScribe finds whichever you have and uses it. Check with
 `python videoscribe.py doctor`.
@@ -363,7 +384,8 @@ is worse than none: it sends a reader to the wrong minute.
 ## Requirements
 
 - Python 3.9 or newer
-- ffmpeg
+- ffmpeg -- and if it is missing, the program offers to install it, including a
+  portable copy that needs no administrator rights
 - About 2 GB of disk space for the default model
 - For the visual description only: one of the four image model options above
 

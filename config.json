@@ -40,11 +40,12 @@
       "count: how many people speak. 0 asks the program to work it out, which is",
       "unreliable in noisy recordings -- if the result looks wrong, set the real",
       "number here and re-run with --resume, which takes seconds.",
-      "label: the word before the number, giving Person1, Person2, ..."
+      "label: the word before the number, giving Person1, Person2, ...",
+      "Leave it empty to follow the interface language (Person / Persona)."
     ],
     "count": 0,
     "max_count": 6,
-    "label": "Person"
+    "label": ""
   },
 
   "narration": {

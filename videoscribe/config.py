@@ -38,10 +38,14 @@ DEFAULTS: dict[str, Any] = {
     "transcription.compute_type": "int8",
     "transcription.beam_size": 5,
     "transcription.cpu_threads": 0,  # 0 = use every available core (max 16)
+    # How many parts of the recording to transcribe at once. 0 works it out
+    # from the cores and memory available; 1 disables splitting.
+    "transcription.workers": 0,
     # --- Speaker separation ----------------------------------------------
     "speakers.count": 0,  # 0 = detect automatically
     "speakers.max_count": 6,
-    "speakers.label": "Person",  # produces Person1, Person2, ...
+    # Empty means "follow the interface language": Person / Persona.
+    "speakers.label": "",
     # --- Visual narration -------------------------------------------------
     "narration.enabled": True,
     "narration.frame_interval_seconds": 10,
@@ -67,6 +71,7 @@ ENV_OVERRIDES: dict[str, str] = {
     "transcription.language": "VIDEOSCRIBE_LANGUAGE",
     "transcription.compute_type": "VIDEOSCRIBE_COMPUTE_TYPE",
     "transcription.cpu_threads": "VIDEOSCRIBE_CPU_THREADS",
+    "transcription.workers": "VIDEOSCRIBE_WORKERS",
     "speakers.count": "VIDEOSCRIBE_SPEAKERS",
     "speakers.max_count": "VIDEOSCRIBE_MAX_SPEAKERS",
     "speakers.label": "VIDEOSCRIBE_SPEAKER_LABEL",
@@ -183,6 +188,11 @@ class Config:
         configured = self.values["transcription.cpu_threads"]
         return configured if configured > 0 else min(16, os.cpu_count() or 4)
 
+    @property
+    def workers(self) -> int:
+        """Requested parallel parts; 0 means work it out from the machine."""
+        return self.values["transcription.workers"]
+
     # --- Speakers ---------------------------------------------------------
     @property
     def speaker_count(self) -> int:
@@ -194,7 +204,19 @@ class Config:
 
     @property
     def speaker_label(self) -> str:
-        return self.values["speakers.label"]
+        """The word placed before each speaker number, e.g. ``Person1``.
+
+        An empty setting means "follow the interface language", so a Spanish
+        run produces ``Persona1`` without the user having to know that the
+        setting exists. Anything explicitly configured always wins.
+        """
+        configured = self.values["speakers.label"]
+        if configured:
+            return configured
+
+        from .i18n import LANGUAGE_DEFAULTS, get_language
+
+        return LANGUAGE_DEFAULTS.get(get_language(), {}).get("speakers.label", "Speaker")
 
     # --- Narration --------------------------------------------------------
     @property

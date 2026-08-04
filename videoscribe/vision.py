@@ -15,8 +15,13 @@ Name             Needs                           Cost
 ``anthropic``    ``ANTHROPIC_API_KEY``            pay per use
 ``openai``       ``OPENAI_API_KEY``               pay per use
 ``gemini``       ``GEMINI_API_KEY``               free tier available
+``ollama``       Ollama running locally           free; private; slow on a CPU
 ``none``         nothing                          narration is skipped
 ===============  ==============================  ==================================
+
+``auto`` tries them in that order, so a configured cloud model wins over the
+local one. Pick ``ollama`` explicitly when the footage must not leave the
+machine -- it is the only back end that sends nothing over the internet.
 
 Adding another provider means writing one class with a ``generate`` method and
 listing it in :data:`BACKENDS`.
@@ -251,6 +256,81 @@ class GeminiApiBackend(VisionBackend):
         return "".join(chunk.get("text", "") for chunk in chunks).strip()
 
 
+class OllamaBackend(VisionBackend):
+    """A vision model running on this computer, served by Ollama.
+
+    The only option that needs no account and sends nothing over the internet,
+    which matters when the footage must not leave the machine. It is also the
+    slowest and the least accurate: a 2-4 billion parameter model reads a large
+    sign reliably, but struggles with the small embroidered text on a uniform
+    that a frontier model picks out. Offer it for privacy, not for quality.
+
+    Ollama listens on localhost:11434 and pulls models on demand.
+    """
+
+    name = "ollama"
+    DEFAULT_MODEL = "qwen2.5vl:3b"
+    BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
+
+    # Vision models small enough to be usable on a normal laptop, with the
+    # memory each one needs and roughly how long it takes per frame on a CPU.
+    MODELS = {
+        "moondream": {"gb": 2.0, "ram_gb": 4, "seconds_per_frame": 15},
+        "qwen2.5vl:3b": {"gb": 3.2, "ram_gb": 8, "seconds_per_frame": 25},
+        "llava:7b": {"gb": 4.7, "ram_gb": 12, "seconds_per_frame": 45},
+        "qwen2.5vl:7b": {"gb": 6.0, "ram_gb": 16, "seconds_per_frame": 55},
+    }
+
+    @classmethod
+    def is_available(cls) -> bool:
+        """True when an Ollama server answers on this machine."""
+        try:
+            with urllib.request.urlopen(cls.BASE_URL + "/api/tags", timeout=3):
+                return True
+        except (urllib.error.URLError, OSError):
+            return False
+
+    @classmethod
+    def why_unavailable(cls) -> str:
+        if shutil.which("ollama"):
+            return "Ollama is installed but not running. Start it and try again."
+        return ("Ollama is not installed. It runs a vision model on this computer, "
+                "with no account and nothing sent over the internet. "
+                "Get it from https://ollama.com")
+
+    @classmethod
+    def installed_models(cls) -> list[str]:
+        """Vision models already pulled on this machine."""
+        try:
+            with urllib.request.urlopen(cls.BASE_URL + "/api/tags", timeout=5) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError):
+            return []
+        names = [entry.get("name", "") for entry in data.get("models", [])]
+        # Match on the family so "qwen2.5vl:3b" also matches a "-q4_K_M" variant.
+        return [name for name in names
+                if any(name.startswith(known.split(":")[0]) for known in cls.MODELS)]
+
+    @classmethod
+    def recommend_model(cls, ram_gb: float) -> str:
+        """The largest vision model this machine can hold comfortably."""
+        affordable = [name for name, spec in cls.MODELS.items()
+                      if ram_gb <= 0 or ram_gb - 2 >= spec["ram_gb"]]
+        return affordable[-1] if affordable else "moondream"
+
+    def generate(self, prompt: str, images: list[Path], model: str) -> str:
+        payload = {
+            "model": model or self.DEFAULT_MODEL,
+            "prompt": prompt,
+            "images": [_read_image_as_base64(path) for path in images],
+            "stream": False,
+            # Long enough for a full paragraph about a two-minute stretch.
+            "options": {"num_predict": 1600},
+        }
+        response = _post_json(self.BASE_URL + "/api/generate", payload, {})
+        return (response.get("response") or "").strip()
+
+
 class DisabledBackend(VisionBackend):
     """Placeholder used when narration is switched off."""
 
@@ -271,6 +351,7 @@ BACKENDS: dict[str, type[VisionBackend]] = {
     "anthropic": AnthropicApiBackend,
     "openai": OpenAiApiBackend,
     "gemini": GeminiApiBackend,
+    "ollama": OllamaBackend,
     "none": DisabledBackend,
 }
 
@@ -281,6 +362,7 @@ DEFAULT_MODELS: dict[str, tuple[str, str]] = {
     "anthropic": ("claude-sonnet-5", "claude-opus-5"),
     "openai": ("gpt-4o", "gpt-4o"),
     "gemini": ("gemini-2.0-flash", "gemini-2.0-flash"),
+    "ollama": ("qwen2.5vl:3b", "qwen2.5vl:3b"),
     "none": ("", ""),
 }
 

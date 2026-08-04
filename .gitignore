@@ -9,9 +9,22 @@ output/*
 !output/.gitkeep
 !output/README.txt
 
+# Scratch output folders from testing, which hold real transcript text.
+output_test/
+output_*/
+!output/
+
+# Scratch output folders from local test runs. Same reasoning: these hold real
+# audio and real transcripts.
+
 # --- Personal settings -----------------------------------------------------
 # .env holds machine-specific paths and, potentially, API keys.
 .env
+
+# --- Downloaded programs ----------------------------------------------------
+# A portable ffmpeg fetched by the installer offer. Tens of megabytes, and
+# specific to one operating system and architecture.
+tools/
 
 # --- Python ----------------------------------------------------------------
 __pycache__/

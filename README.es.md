@@ -104,24 +104,27 @@ Todo queda en `output/<nombre de tu video>/`:
 
 ## Cómo se ve el resultado
 
+Los ejemplos de abajo son inventados, no material de un caso real.
+
 **`02_transcript.txt`**
 
 ```
-[00:12:00] Persona1:
-    ...no tienen por qué cobrarle, le tienen que cobrar a partir de que
-    muestre su recibo, es lo que se les está pidiendo ahorita.
+[00:03:48] Persona1:
+    En el recibo me aparecen dos mil pesos de recargo y en la ventanilla
+    me dijeron otra cifra; quiero que me expliquen de dónde sale.
 
-[00:12:16] Persona2:
-    Nada más deben el 25, paguen el 25.
+[00:04:05] Persona2:
+    El recargo se calcula por trimestre vencido, señora. Le imprimo el
+    desglose y si está mal, aquí mismo se lo corregimos.
 ```
 
 **`04_narrative.txt`** — esta es la parte que lo vuelve más que una transcripción:
 
-> Frente al mural aparece sentada una mujer de cabello corto castaño con chamarra
-> rosa palo sobre un chaleco vino. El bordado se alcanza a leer parcialmente como
-> "...Reyes Toral", "...partamento De Mercados" y "H. AYUNTAMIENTO DE CHIMALHUACÁN
-> 2022-2024" `[00:12:40]`. En `[00:08:40]` se ve un papel con anotaciones
-> manuscritas que aparentemente muestran cifras como "$3900", coincidiendo con la
+> Frente a la ventanilla aparece sentada una persona con playera blanca bajo un
+> chaleco verde olivo. El bordado se alcanza a leer parcialmente como
+> "...ano de Tal", "...ección De Parques" y "H. AYUNTAMIENTO DE VILLA EJEMPLO
+> 2018-2021" `[00:04:20]`. En `[00:06:05]` se ve un papel con anotaciones
+> manuscritas que aparentemente muestran cifras como "$1,780", coincidiendo con la
 > conversación sobre montos.
 
 Fíjate en lo que hace: cita el texto que sí alcanza a leer, dice "parcialmente" y
@@ -153,6 +156,13 @@ tarjeta gráfica**:
 Una tarjeta gráfica lo hace varias veces más rápido. VideoScribe la detecta sola y
 te recomienda un modelo más grande cuando tu equipo aguanta.
 
+**En un CPU de varios núcleos la grabación se parte y se transcribe en paralelo.** El
+propio hilado de whisper deja de ayudar pasados unos cuatro núcleos, así que el resto
+se quedaría sin hacer nada. Los cortes caen en silencios, nunca a media palabra, y una
+grabación sin silencios aprovechables se transcribe de una pieza. Medido sobre 8
+minutos de audio con 16 núcleos: 2:44 en una parte, 1:41 en dos, 1:37 en cuatro. Pasa
+solo; pon `transcription.workers` en 1 para desactivarlo.
+
 ---
 
 ## Si las personas salen mal
@@ -178,14 +188,14 @@ segundos en vez de repetir todo.
 tono de voz) más agrupamiento, escrito en NumPy. Por eso la instalación es un solo
 `pip install`, sin cuenta ni licencia que aceptar. Es genuinamente más débil que un
 modelo neuronal entrenado, y sufre cuando varias voces parecidas hablan en un lugar
-ruidoso. El detalle está en [`docs/ACCURACY.md`](docs/ACCURACY.md).
+ruidoso. El detalle está en [`docs/ACCURACY.es.md`](docs/ACCURACY.es.md).
 
 ---
 
 ## Describir lo que se ve en pantalla
 
 La transcripción no necesita nada más que tu computadora. La **descripción visual**
-sí necesita un modelo que vea imágenes. Tienes cuatro opciones, y cualquiera sirve:
+sí necesita un modelo que vea imágenes. Tienes cinco opciones, y cualquiera sirve:
 
 | Opción | Qué necesitas | Costo |
 |---|---|---|
@@ -193,6 +203,18 @@ sí necesita un modelo que vea imágenes. Tienes cuatro opciones, y cualquiera s
 | **API de Anthropic** | `ANTHROPIC_API_KEY` en tu `.env` | Se paga por uso |
 | **API de OpenAI** | `OPENAI_API_KEY` en tu `.env` | Se paga por uso |
 | **Google Gemini** | `GEMINI_API_KEY` en tu `.env` | Tiene capa gratuita |
+| **Un modelo en tu propia computadora** | [Ollama](https://ollama.com) instalado | Gratis, y nada sale de la máquina |
+
+Si no tienes ninguno configurado, el menú te ofrece las cuatro y puede guardar una
+clave de API en el `.env` por ti, o descargar el modelo local. Nunca tienes que editar
+un archivo a mano.
+
+**Sobre la opción local.** Es la única que no envía nada por internet, lo que puede
+decidir el asunto con material confidencial. Ten clara la contrapartida: un modelo de
+3 mil millones de parámetros lee bien un letrero grande pero es notablemente peor con
+el texto bordado pequeño de un uniforme, y en CPU tarda unos 25 segundos por
+fotograma contra uno o dos de un modelo en la nube. El menú te dice el estimado para
+tu video antes de que te comprometas.
 
 VideoScribe encuentra la que tengas y la usa. Revisa con
 `python videoscribe.py doctor`.
@@ -301,7 +323,7 @@ orden en que aparecen. Si ya sabes cuántas personas hay en la grabación, díse
 
 Limitada, y honesta al respecto. Puede partir la voz de una persona en dos cuando
 hay ruido, y te avisa en el resultado cuando las voces no se separaron con
-claridad. Ver [`docs/ACCURACY.md`](docs/ACCURACY.md).
+claridad. Ver [`docs/ACCURACY.es.md`](docs/ACCURACY.es.md).
 
 ### ¿La IA puede describir lo que pasa en el video, no solo lo que se dice?
 
@@ -366,7 +388,8 @@ punto incorrecto.
 ## Requisitos
 
 - Python 3.9 o más nuevo
-- ffmpeg
+- ffmpeg -- y si falta, el programa se ofrece a instalarlo, incluso con una copia
+  portable que no necesita permisos de administrador
 - Unos 2 GB de disco para el modelo predeterminado
 - Solo para la descripción visual: una de las cuatro opciones de modelo de imagen
 
@@ -374,8 +397,8 @@ Los instaladores se encargan de todo esto.
 
 ## Documentación
 
-- [`docs/ACCURACY.md`](docs/ACCURACY.md) — qué creer, qué verificar, y por qué
-- [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) — todos los ajustes explicados
+- [`docs/ACCURACY.es.md`](docs/ACCURACY.es.md) — qué creer, qué verificar, y por qué
+- [`docs/CONFIGURATION.es.md`](docs/CONFIGURATION.es.md) — todos los ajustes explicados
 - [`tests/README.md`](tests/README.md) — cómo funcionan las pruebas en contenedor
 - [`CLAUDE.md`](CLAUDE.md) — notas para asistentes de IA que trabajen en este repo
 
