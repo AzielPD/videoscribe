@@ -1,0 +1,55 @@
+# Tooling configuration only. VideoScribe is run from videoscribe.py, not
+# installed as a package, so there is no [project] table here on purpose:
+# adding one would invite `pip install .` and a second copy of the code.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The container tests are shell scripts driven by podman; they are not pytest.
+python_files = ["test_*.py"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+# Matches the guard in videoscribe.py and what faster-whisper supports. Raising
+# this would silently bless syntax that fails on a user's older Python.
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes: undefined names, unused imports
+    "I",        # import ordering
+    "B",        # bugbear: mutable defaults, shadowed loop vars
+    "UP",       # outdated syntax for the Python we target
+    "C4",       # comprehension clarity
+    "SIM",      # obvious simplifications
+    "RET",      # return-path clarity
+    "PTH",      # os.path where pathlib is already used everywhere else
+    "S",        # bandit rules, for the ones that are cheap to check inline
+]
+ignore = [
+    # The toolkit shells out to ffmpeg, ollama and claude by design. Every call
+    # site passes a list, never a string, and never through a shell.
+    "S603",
+    # ffmpeg and claude are found via PATH on purpose: the alternative is
+    # hard-coding install locations that differ on every machine.
+    "S607",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert; that is the point.
+"tests/*" = ["S101"]
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+# Skipped because they describe how this toolkit is built, not a defect. Every
+# one was read before being listed here; the point of the scan is that a *new*
+# finding stands out, and a report full of known noise defeats that.
+#
+#   B404  importing subprocess at all. The whole job is driving ffmpeg.
+#   B603  subprocess without shell. Every call site passes a list, never a
+#         string, and never shell=True -- which is the mitigation B603 asks for.
+#   B607  partial executable path. ffmpeg, ollama and claude are deliberately
+#         found on PATH; hard-coding install locations breaks on every machine
+#         that put them somewhere else.
+skips = ["B404", "B603", "B607"]

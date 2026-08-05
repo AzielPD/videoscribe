@@ -383,37 +383,54 @@ n
     bash -c "$MAKE_CLIP && python videoscribe.py"
 
 # Option 2 needs a video before it reaches the image-model check, so these only
-# make sense once the inbox has something in it. The flow is: menu option 2 ->
-# the "how should the video be described" screen -> a choice there -> and only
-# then the fall-back question.
-check "option 2 offers every way to describe the video"     "2
-4
+# make sense once the inbox has something in it.
+#
+# Nothing here has an image model, so option 2 is shown as unavailable and the
+# flow is: menu option 2 -> "the description needs an image model" -> "set one
+# up now?" -> and only if that is accepted, the "how should the video be
+# described" screen. Declining setup offers the transcript instead.
+check "the unavailable description explains itself"     "2
 n
-" 1 "HOW SHOULD THE VIDEO BE DESCRIBED"     bash -c "$MAKE_CLIP && python videoscribe.py"
-
-check "the local, private option is offered first"     "2
-4
 n
-" 1 "On this computer, with Ollama"     bash -c "$MAKE_CLIP && python videoscribe.py"
+" 0 "THE DESCRIPTION NEEDS AN IMAGE MODEL"     bash -c "$MAKE_CLIP && python videoscribe.py"
 
-check "pasting an API key is offered"     "2
-4
+check "the explanation names a way to fix it"     "2
 n
-" 1 "Paste an API key"     bash -c "$MAKE_CLIP && python videoscribe.py"
-
-check "skipping the description offers a transcript instead"     "2
-4
 n
-" 1 "Continue with the transcript only"     bash -c "$MAKE_CLIP && python videoscribe.py"
+" 0 "Gemini"     bash -c "$MAKE_CLIP && python videoscribe.py"
 
-check "accepting the fall-back reaches the model chooser"     "2
-4
+check "declining setup offers a transcript instead"     "2
+n
+n
+" 0 "Continue with the transcript only"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
+check "accepting the transcript reaches the model chooser"     "2
+n
 y
 3
 n
 " 0 "CHOOSE HOW ACCURATE"     bash -c "$MAKE_CLIP && python videoscribe.py"
 
+check "option 2 offers every way to describe the video"     "2
+y
+4
+n
+" 0 "HOW SHOULD THE VIDEO BE DESCRIBED"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
+check "the local, private option is offered first"     "2
+y
+4
+n
+" 0 "On this computer, with Ollama"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
+check "pasting an API key is offered"     "2
+y
+4
+n
+" 0 "Paste an API key"     bash -c "$MAKE_CLIP && python videoscribe.py"
+
 check "Ollama explains itself when it is not installed"     "2
+y
 1
 " any "ollama.com"     bash -c "$MAKE_CLIP && python videoscribe.py"
 

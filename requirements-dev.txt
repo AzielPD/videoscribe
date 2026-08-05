@@ -1,0 +1,21 @@
+# Tools for working *on* VideoScribe. Not needed to use it.
+#
+#     pip install -r requirements-dev.txt
+#     python check.py
+#
+# Kept separate from requirements.txt on purpose: installing VideoScribe stays
+# one command with two dependencies, and a lawyer's laptop does not need a
+# linter on it.
+
+# Unit tests.
+pytest>=8.0
+
+# Code quality: style, unused names, import order, obvious simplifications.
+# Also carries the cheaper bandit rules, so most security checks run inline.
+ruff>=0.6
+
+# Security: static analysis for the patterns a linter does not cover.
+bandit[toml]>=1.7
+
+# Security: known vulnerabilities in the packages we depend on.
+pip-audit>=2.7
