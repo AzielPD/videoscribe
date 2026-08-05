@@ -132,7 +132,7 @@ def check_all(ffmpeg_override: str = "") -> list[ToolStatus]:
     import sys
 
     version = ".".join(str(n) for n in sys.version_info[:3])
-    results.append(ToolStatus("python", sys.version_info >= (3, 9),
+    results.append(ToolStatus("python", sys.version_info >= (3, 10),
                               f"{version} at {sys.executable}"))
 
     try:

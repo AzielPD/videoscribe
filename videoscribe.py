@@ -18,12 +18,12 @@ from pathlib import Path
 # Allow running from any working directory, e.g. by double-clicking run.cmd.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# noqa: UP036 - deliberately checks a version below the supported floor. This
-# file parses on 3.8, so the guard is what turns a baffling crash into a
-# sentence telling the user to upgrade.
-if sys.version_info < (3, 9):  # noqa: UP036 - pragma: no cover
+# This file deliberately uses nothing newer than 3.8 syntax, so it parses on
+# any Python a user is likely to have. That is what lets the guard below turn a
+# baffling crash into a sentence telling them to upgrade.
+if sys.version_info < (3, 10):  # noqa: UP036 - pragma: no cover
     sys.exit(
-        "VideoScribe needs Python 3.9 or newer.\n"
+        "VideoScribe needs Python 3.10 or newer.\n"
         f"This is Python {'.'.join(str(n) for n in sys.version_info[:3])}.\n"
         "Install a newer version from https://www.python.org/downloads/"
     )

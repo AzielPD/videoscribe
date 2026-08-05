@@ -534,7 +534,7 @@ is worse than none: it sends a reader to the wrong minute.
 
 | You need | And you get |
 |---|---|
-| Python 3.9 or newer | |
+| Python 3.10 or newer | |
 | ffmpeg — if it is missing, the program offers to install it, including a portable copy needing no administrator rights | **A transcript** with who said what and a timecode on every line |
 | About 2 GB of disk for the default model | **Subtitles** as an `.srt` file |
 | | A machine-readable `.json` of the same |

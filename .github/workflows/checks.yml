@@ -30,10 +30,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The README promises Python 3.9 or newer. That claim is worth
-          # testing rather than asserting.
+          # The README promises Python 3.10 or newer. That claim is worth
+          # testing rather than asserting. 3.9 was dropped because the only
+          # dependency versions resolvable on it carry unpatched CVEs.
           - os: ubuntu-latest
-            python: "3.9"
+            python: "3.10"
           - os: ubuntu-latest
             python: "3.13"
           # Windows is the platform most users are on, and the one where the

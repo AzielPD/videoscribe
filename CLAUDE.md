@@ -27,7 +27,7 @@ VERSION                   must match videoscribe.__version__ and CHANGELOG.md;
                           tests/test_version.py fails if they drift
 CHANGELOG.md              what changed between releases
 .github/workflows/        CI: the same checks, on Linux, Windows and macOS,
-                          plus Python 3.9 to prove the floor the README claims
+                          plus Python 3.10 to prove the floor the README claims
 videoscribe/
   config.py               settings: defaults < config.json < .env < CLI
   tools.py                finds ffmpeg, checks the environment

@@ -4,7 +4,7 @@
 #
 #  Checks for each requirement and installs only what is missing:
 #
-#    1. Python 3.9 or newer
+#    1. Python 3.10 or newer
 #    2. ffmpeg
 #    3. Python packages (into a virtual environment)
 #    4. Folders (inbox, output)
@@ -127,18 +127,18 @@ PYTHON=""
 for candidate in python3 python; do
     if have "$candidate"; then
         version="$("$candidate" -c 'import sys; print(".".join(str(n) for n in sys.version_info[:3]))' 2>/dev/null || echo "")"
-        if [ -n "$version" ] && "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null; then
+        if [ -n "$version" ] && "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
             PYTHON="$candidate"
             ok "Python $version found at $(command -v "$candidate")"
             break
         elif [ -n "$version" ]; then
-            warn "Python $version is older than the required 3.9"
+            warn "Python $version is older than the required 3.10"
         fi
     fi
 done
 
 if [ -z "$PYTHON" ]; then
-    warn "Python 3.9 or newer is not installed."
+    warn "Python 3.10 or newer is not installed."
     if [ "$INSTALLER" = "brew" ]; then
         install_package python "Python" && PYTHON=python3
     else

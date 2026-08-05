@@ -153,7 +153,10 @@ def choose_split_points(
     points = sorted({round(point, 3) for point in points})
     if len(points) != workers - 1:
         return []
-    if any(later - earlier < 1.0 for earlier, later in zip(points, points[1:])):
+    # strict=False on purpose: pairing a list with itself offset by one is
+    # meant to stop at the shorter, which is how consecutive pairs are walked.
+    if any(later - earlier < 1.0
+           for earlier, later in zip(points, points[1:], strict=False)):
         return []
     return points
 
@@ -181,7 +184,9 @@ def split_wav(source: Path, points: list[float], work_dir: Path, sample_rate: in
     bytes_per_frame = channels * width
 
     chunks: list[Chunk] = []
-    for index, (start, end) in enumerate(zip(boundaries, boundaries[1:])):
+    # Same pairwise walk as above: n boundaries describe n-1 chunks.
+    for index, (start, end) in enumerate(
+            zip(boundaries, boundaries[1:], strict=False)):
         first = int(start * rate) * bytes_per_frame
         last = int(end * rate) * bytes_per_frame
         path = work_dir / f"chunk_{index:02d}.wav"

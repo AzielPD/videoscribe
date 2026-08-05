@@ -5,7 +5,7 @@
 .DESCRIPTION
     Checks for each requirement and installs only what is missing:
 
-      1. Python 3.9 or newer      (via winget, if absent)
+      1. Python 3.10 or newer     (via winget, if absent)
       2. ffmpeg                   (via winget, if absent)
       3. Python packages          (pip install -r requirements.txt)
       4. Folders                  (inbox, output)
@@ -49,7 +49,7 @@ $ErrorActionPreference = 'Stop'
 # This script lives in scripts/, so the repository is its parent. Everything
 # below -- requirements.txt, .env, videoscribe.py -- is looked up from there.
 $RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)
-$MinimumPython = [version]'3.9'
+$MinimumPython = [version]'3.10'
 
 # --- Small output helpers --------------------------------------------------
 $script:StepNumber = 0

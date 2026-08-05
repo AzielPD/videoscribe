@@ -10,9 +10,9 @@ addopts = "-q --strict-markers"
 
 [tool.ruff]
 line-length = 100
-# Matches the guard in videoscribe.py and what faster-whisper supports. Raising
-# this would silently bless syntax that fails on a user's older Python.
-target-version = "py39"
+# Matches the guard in videoscribe.py. Raising this would silently bless syntax
+# that fails on a user's older Python; lowering it flags syntax that is fine.
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [

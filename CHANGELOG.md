@@ -9,6 +9,18 @@ agree; a test in `tests/test_version.py` fails if they drift apart.
 
 First public release.
 
+### Requires Python 3.10 or newer
+
+Not 3.9, and the reason is worth stating. On 3.9 the newest resolvable
+versions of two transitive dependencies — `filelock` and `click`, both
+pulled in by faster-whisper — carry known vulnerabilities, and the fixed
+releases require 3.10. Supporting 3.9 would mean shipping unpatched
+packages with no upgrade available. Python 3.9 itself stopped receiving
+security fixes in October 2025.
+
+This was found by continuous integration on the first push, which is why
+the matrix tests the oldest supported version rather than assuming it.
+
 ### What it does
 
 - Turns a video **or an audio recording** into a transcript that labels each

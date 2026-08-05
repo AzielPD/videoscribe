@@ -545,7 +545,7 @@ punto incorrecto.
 
 | Necesitas | Y obtienes |
 |---|---|
-| Python 3.9 o más nuevo | |
+| Python 3.10 o más nuevo | |
 | ffmpeg — si falta, el programa se ofrece a instalarlo, incluso con una copia portable que no necesita permisos de administrador | **Una transcripción** con quién dijo qué y una marca de tiempo en cada línea |
 | Unos 2 GB de disco para el modelo predeterminado | **Subtítulos** en un archivo `.srt` |
 | | Un `.json` legible por máquina con lo mismo |
