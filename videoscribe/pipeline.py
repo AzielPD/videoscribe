@@ -36,10 +36,22 @@ from .tools import find_ffmpeg
 from .transcribe import Transcript, summarise, transcribe_in_parallel
 from .vision import DEFAULT_MODELS, VisionUnavailable, select_backend
 
+# Everything the inbox will pick up. Audio belongs here as much as video: the
+# pipeline only ever works from the extracted audio track, so a recording that
+# arrives as an MP3 needs nothing extra -- steps 1 to 5 run unchanged, and only
+# the optional visual description is unavailable, because there is no picture.
+# This already worked through --file, which never checked the extension; the
+# inbox simply did not look for it.
 VIDEO_EXTENSIONS = {
     ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv",
     ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".3gp",
 }
+
+AUDIO_EXTENSIONS = {
+    ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".wma", ".aiff",
+}
+
+MEDIA_EXTENSIONS = VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 
 
 @dataclass
@@ -66,13 +78,13 @@ class RunResult:
 
 
 def find_videos(folder: Path) -> list[Path]:
-    """Every video file directly inside ``folder``, sorted by name."""
+    """Every video or audio recording directly inside ``folder``, sorted by name."""
     if not folder.is_dir():
         return []
     return sorted(
         path
         for path in folder.iterdir()
-        if path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS
+        if path.is_file() and path.suffix.lower() in MEDIA_EXTENSIONS
     )
 
 
@@ -110,8 +122,23 @@ def process_video(
     ffmpeg = find_ffmpeg(config.ffmpeg_override)
 
     # --- 1. Inspect ------------------------------------------------------
-    reporter.step(t("step.reading"))
     info = probe(ffmpeg, video)
+
+    # A recording with no picture cannot be described, however it was asked for.
+    # Probing before the first step is announced keeps the step count honest:
+    # promising eight steps and delivering five reads as a failure.
+    if wants_description and not info.width:
+        wants_description = False
+        total_steps = 5
+        reporter.total_steps = total_steps
+        result_note = t("warn.audio_only_no_description")
+    else:
+        result_note = ""
+
+    reporter.step(t("step.reading"))
+    if result_note:
+        reporter.warn(result_note)
+        result.warnings.append(result_note)
     size_gb = video.stat().st_size / (1024 ** 3)
     reporter.detail(f"{video.name}  ({size_gb:.2f} GB)")
     reporter.detail(
@@ -122,7 +149,8 @@ def process_video(
         raise RuntimeError(t("error.no_audio", name=video.name))
 
     span_start = parse_timecode(options.start) if options.start else 0.0
-    span_length = parse_timecode(options.duration) if options.duration else info.duration - span_start
+    span_length = (parse_timecode(options.duration) if options.duration
+                   else info.duration - span_start)
     if span_length <= 0:
         raise RuntimeError(t("error.span_outside"))
 
@@ -243,7 +271,8 @@ def process_video(
         )
     )
     result.files.append(
-        writers.write_subtitles_srt(output_dir / "03_subtitles.srt", transcript, config.speaker_label)
+        writers.write_subtitles_srt(output_dir / "03_subtitles.srt", transcript,
+                                    config.speaker_label)
     )
     writers.write_transcript_json(
         transcript_json, transcript,
@@ -297,11 +326,19 @@ def process_video(
                       interval=config.frame_interval))
 
     reporter.step(t("step.describing", backend=backend.name))
+    # A back end that runs on this computer knows better than the config how
+    # much video it can describe in one request. Ask it, and say so when it
+    # disagrees rather than quietly using different sections than were asked for.
+    plan = backend.plan_windows(config.frame_interval, config.window_seconds, machine)
+    if plan.changed:
+        reporter.detail(plan.note)
+        result.warnings.append(plan.note)
+
     windows = [
         window
         for window in build_windows(
             frames, transcript.segments, span_length,
-            config.frame_interval, config.window_seconds, offset=span_start,
+            plan.frame_interval, plan.window_seconds, offset=span_start,
         )
         if not window.is_empty
     ]

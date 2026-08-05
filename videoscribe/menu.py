@@ -42,7 +42,7 @@ from .system import (
 )
 from .timecode import format_duration, format_timecode
 from .tools import ToolMissing, check_all, find_ffmpeg
-from .vision import available_backends
+from .vision import available_backends, is_configured
 
 RULE = "=" * 70
 THIN = "-" * 70
@@ -321,12 +321,21 @@ def setup_local_vision(machine, audio_seconds: float) -> bool:
 
     model = OllamaBackend.recommend_model(machine.ram_gb)
     spec = OllamaBackend.MODELS[model]
+
+    level, verdict = OllamaBackend.verdict(machine, model)
+    if level == "unusable":
+        print()
+        print_wrapped(verdict, indent="  ")
+        return False
+
     print()
     print("  " + t("vision.ollama_model", model=model, size=spec["gb"]))
 
-    # One frame every ten seconds is the default sampling rate.
+    # One frame every ten seconds is the default sampling rate. The per-frame
+    # cost is asked of the back end rather than read from the table, so that a
+    # graphics card is reflected instead of quoting everyone the CPU figure.
     frames = max(1, int(audio_seconds // 10))
-    minutes = int(frames * spec["seconds_per_frame"] / 60)
+    minutes = int(frames * OllamaBackend.seconds_per_frame(model, machine) / 60)
     print_wrapped(t("vision.ollama_slow", minutes=minutes), indent="  ")
 
     if model not in OllamaBackend.installed_models():
@@ -350,17 +359,57 @@ def setup_local_vision(machine, audio_seconds: float) -> bool:
     return True
 
 
+def explain_vision_missing(config: Config) -> str:
+    """Say why the description is not available, and offer a way forward.
+
+    Returns what the caller should do next:
+
+    ``"describe"``   a model was set up; run with the description after all
+    ``"transcript"`` run anyway, transcript and subtitles only
+    ``"back"``       return to the menu
+
+    Someone who picked the description wants their recording processed. Sending
+    them back to the menu to pick option 1 instead is a step that teaches them
+    nothing, so the transcript is offered here.
+    """
+    print(f"\n{RULE}\n {t('vision.not_set_up_header')}\n{RULE}")
+    print_wrapped(t("vision.not_set_up_explain"), indent="  ")
+    print()
+    print_wrapped(t("vision.not_set_up_options"), indent="  ")
+    print()
+    print("  " + t("vision.not_set_up_docs"))
+    print()
+
+    if ask_yes_no("  " + t("vision.set_up_now"), False):
+        machine = profile_machine(config.output_dir)
+        if setup_vision(machine, audio_seconds=0.0):
+            return "describe"
+
+    print()
+    if ask_yes_no("  " + t("run.continue_transcript_only"), True):
+        return "transcript"
+    return "back"
+
+
 def setup_vision(machine, audio_seconds: float) -> bool:
     """Offer every way of getting a model that can read the picture.
 
     Returns True when one is ready, so the caller can go ahead with the
     description instead of falling back to a transcript.
     """
+    from .vision import ClaudeCliBackend, OllamaBackend
+
+    level, verdict = OllamaBackend.verdict(machine)
+
     print(f"\n{RULE}\n {t('vision.header')}\n{RULE}")
     print_wrapped(t("vision.explain"), indent="  ")
     print()
     print(f"  1) {t('vision.option_local')}")
     print_wrapped(t("vision.option_local_detail"), indent="     ")
+    # What the local option costs *here*, rather than in general. On a machine
+    # without a graphics card this is the difference between a sensible choice
+    # and one that runs overnight, so it decides the default below too.
+    print_wrapped(verdict, indent="     ")
     print(f"  2) {t('vision.option_key')}")
     print_wrapped(t("vision.option_key_detail"), indent="     ")
     print(f"  3) {t('vision.option_claude')}")
@@ -368,7 +417,15 @@ def setup_vision(machine, audio_seconds: float) -> bool:
     print(f"  4) {t('vision.option_skip')}")
     print()
 
-    answer = ask("  " + t("prompt.pick_number"), {"1", "2", "3", "4"}, "1")
+    # Pre-select the local model only where it is actually the better choice.
+    if level == "recommended":
+        default = "1"
+    elif ClaudeCliBackend.is_available():
+        default = "3"
+    else:
+        default = "2"
+
+    answer = ask("  " + t("prompt.pick_number"), {"1", "2", "3", "4"}, default)
     if answer == "4":
         return False
     if answer == "1":
@@ -536,9 +593,16 @@ def run_menu(argv: list[str] | None = None) -> int:
             print("  " + t("app.no_videos"))
             print("  " + t("app.copy_videos_into", path=inbox))
 
+        # The description is only offered when something can actually produce
+        # it. Presenting it like any other choice and failing half an hour
+        # later, after the transcript has already run, is the worse outcome.
+        vision_ready = is_configured()
+
         print(f"\n{RULE}\n {t('menu.header')}\n{RULE}")
         print("  1) " + t("menu.option_transcript"))
         print("  2) " + t("menu.option_describe"))
+        if not vision_ready:
+            print("     " + t("menu.describe_unavailable"))
         print("  3) " + t("menu.option_check"))
         print("  4) " + t("menu.option_language", language=language_name()))
         print("  5) " + t("menu.option_quit"))
@@ -559,11 +623,21 @@ def run_menu(argv: list[str] | None = None) -> int:
             print("\n  " + t("check.change_settings") + "\n")
             continue
 
+        describe = choice == "2"
+        if describe and not vision_ready:
+            # Explain rather than refuse silently, and leave the door open: the
+            # setup offered here is the only way a non-technical user gets a key
+            # into .env without opening a text editor.
+            decision = explain_vision_missing(config)
+            if decision == "back":
+                continue
+            describe = decision == "describe"
+
         if not videos:
             print("\n  " + t("app.nothing_to_process", path=inbox))
             return 1
 
-        return _start_run(config, videos, describe=(choice == "2"))
+        return _start_run(config, videos, describe=describe)
 
 
 def _start_run(config: Config, videos: list[Path], describe: bool) -> int:

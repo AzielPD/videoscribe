@@ -25,11 +25,23 @@ from .timecode import format_timecode, strip_invented_timecodes
 from .vision import VisionBackend
 
 # Openers a model tends to prepend despite being told not to.
+#
+# The second group is the model talking about its own situation rather than
+# about the video -- "I don't see any image files attached", "Unfortunately I
+# cannot". One of those reached a finished account, in English, at the top of a
+# Spanish document meant for a court file. Whatever the prompt says, this is the
+# last thing standing between the model's chatter and the reader.
 PREAMBLE_PATTERN = re.compile(
     r"^\s*(here (is|are)|i (will|'ll|have)|now i|let me|based on|looking at|"
-    r"the following|sure|certainly|okay|ok|understood|perfect)\b",
+    r"the following|sure|certainly|okay|ok|understood|perfect|"
+    r"i (don't|do not|can't|cannot|couldn't|could not|'m|am)\b|"
+    r"(it|that) (looks|seems|appears)\b|unfortunately|note that|apologies|"
+    r"(sorry|thanks|thank you)\b|that said)\b",
     re.IGNORECASE,
 )
+
+# A horizontal rule the model draws between its remarks and the real answer.
+SEPARATOR_PATTERN = re.compile(r"^\s*([-*_])(\s*\1){2,}\s*$")
 
 WINDOW_RULES = """\
 Rules:
@@ -87,7 +99,7 @@ class Window:
     def build_prompt(self, speaker_label: str, output_language: str) -> str:
         """Assemble the instruction sent to the vision model."""
         lines = [
-            f"Analyse one stretch of a video recording.",
+            "Analyse one stretch of a video recording.",
             f"Stretch: {format_timecode(self.start)} to {format_timecode(self.end)}.",
             "",
             "FRAMES (the time of each frame comes first):",
@@ -116,12 +128,21 @@ class Window:
 
 
 def strip_preamble(text: str) -> str:
-    """Drop a leading courtesy sentence such as "Here is the paragraph:"."""
+    """Drop leading remarks such as "Here is the paragraph:" or an apology.
+
+    Only ever removes from the front, and never the last remaining line, so a
+    short account that happens to begin with one of these words survives. The
+    account itself is what the reader takes to court; the model's remarks about
+    its own working conditions are not part of it.
+    """
     lines = text.replace("\r\n", "\n").split("\n")
     while len(lines) > 1:
         first = lines[0].strip()
-        looks_like_preamble = bool(PREAMBLE_PATTERN.match(first)) or (
-            first.endswith(":") and len(first) < 160
+        looks_like_preamble = (
+            bool(PREAMBLE_PATTERN.match(first))
+            or bool(SEPARATOR_PATTERN.match(first))
+            # A short line ending in a colon is introducing what follows.
+            or (first.endswith(":") and len(first) < 160)
         )
         if not looks_like_preamble:
             break

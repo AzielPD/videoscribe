@@ -37,7 +37,10 @@ import subprocess
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
+
+from .i18n import t
 
 # How long to wait for one description before giving up, in seconds.
 REQUEST_TIMEOUT = 600
@@ -51,21 +54,57 @@ def _read_image_as_base64(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("ascii")
 
 
+def _check_http_url(url: str) -> str:
+    """Reject anything that is not an HTTP(S) address.
+
+    ``OLLAMA_HOST`` comes from the environment, and urllib is happy to open
+    ``file://`` or ``ftp://``. Without this a stray environment variable turns
+    a request meant for localhost into a read of local disk, and the API key
+    headers would be sent wherever it pointed.
+    """
+    if not url.lower().startswith(("http://", "https://")):
+        raise RuntimeError(
+            f"Refusing to use '{url}': an image model address must start with "
+            "http:// or https://. Check OLLAMA_HOST."
+        )
+    return url
+
+
 def _post_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
     """Minimal JSON POST so the toolkit needs no HTTP dependency."""
+    _check_http_url(url)
     data = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(url, data=data, method="POST")
+    request = urllib.request.Request(url, data=data, method="POST")  # noqa: S310 - scheme checked
     request.add_header("Content-Type", "application/json")
     for key, value in headers.items():
         request.add_header(key, value)
     try:
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:  # noqa: S310  # nosec B310 - scheme checked above
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")[:400]
         raise RuntimeError(f"{url} returned HTTP {exc.code}: {body}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Could not reach {url}: {exc.reason}") from exc
+
+
+@dataclass
+class WindowPlan:
+    """How a back end wants the recording cut up, and why.
+
+    ``note`` is empty when the caller's own settings were kept. When it is not,
+    it says what changed and what forced the change, because a run that quietly
+    describes the video in different chunks than the user asked for is a run
+    whose output they cannot reason about.
+    """
+
+    frame_interval: int
+    window_seconds: int
+    note: str = ""
+
+    @property
+    def changed(self) -> bool:
+        return bool(self.note)
 
 
 class VisionBackend(ABC):
@@ -86,6 +125,17 @@ class VisionBackend(ABC):
     @classmethod
     def why_unavailable(cls) -> str:
         return f"{cls.name} is not configured."
+
+    @classmethod
+    def plan_windows(cls, frame_interval: int, window_seconds: int,
+                     machine=None) -> WindowPlan:
+        """Accept the requested windowing, or shrink it to what this can finish.
+
+        Hosted models cope with whatever they are sent, so the default is to
+        change nothing. A back end that has a fixed context window or runs on
+        the user's own processor overrides this.
+        """
+        return WindowPlan(frame_interval, window_seconds)
 
 
 class ClaudeCliBackend(VisionBackend):
@@ -111,8 +161,15 @@ class ClaudeCliBackend(VisionBackend):
     def generate(self, prompt: str, images: list[Path], model: str) -> str:
         # The CLI reads images itself, so the paths go in the prompt and the
         # Read tool is allowed. Nothing else is permitted.
-        listing = "\n".join(f"  {path}" for path in images)
-        full_prompt = f"{prompt}\n\nRead these image files:\n{listing}\n"
+        #
+        # The final synthesis step sends no images -- it works from the text of
+        # the sections. Asking it to "read these image files" and then listing
+        # none made the model open its answer by complaining that no images
+        # arrived, and that complaint ended up in the finished document.
+        full_prompt = prompt
+        if images:
+            listing = "\n".join(f"  {path}" for path in images)
+            full_prompt = f"{prompt}\n\nRead these image files:\n{listing}\n"
 
         command = ["claude", "-p", "--allowedTools", "Read", "--output-format", "text"]
         if model:
@@ -272,22 +329,55 @@ class OllamaBackend(VisionBackend):
     DEFAULT_MODEL = "qwen2.5vl:3b"
     BASE_URL = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 
+    # Ollama gives a model a 4096-token context unless asked otherwise, and one
+    # frame of a 1280x720 video costs about 900 tokens once encoded. A default
+    # 120-second window holds twelve frames, so the request arrives at roughly
+    # 10800 tokens and Ollama rejects the whole thing with HTTP 400 instead of
+    # answering about the frames that did fit. The context is therefore sized
+    # from the images actually being sent. 1100 leaves room for frames from a
+    # larger source than the one this was measured on.
+    TOKENS_PER_FRAME = 1100
+    # Below this, sizing the context down buys nothing and risks clipping the
+    # prompt; above it, a CPU spends longer on the prefill than on the answer.
+    MIN_CONTEXT = 4096
+    MAX_CONTEXT = 32768
+
+    # Frames per request. Cost does not grow linearly: on a 16-core CPU three
+    # frames answered in under two minutes, while twelve frames had not
+    # answered when REQUEST_TIMEOUT expired at ten. Four is the largest batch
+    # measured to finish comfortably. A graphics card is roughly an order of
+    # magnitude faster, so it keeps the ordinary default.
+    MAX_FRAMES_PER_REQUEST_CPU = 4
+    MAX_FRAMES_PER_REQUEST_GPU = 12
+
     # Vision models small enough to be usable on a normal laptop, with the
-    # memory each one needs and roughly how long it takes per frame on a CPU.
+    # memory each one needs and how long each spends per frame on a CPU.
+    #
+    # Only the qwen2.5vl:3b figure is measured: 9 frames of a 1280x720 video
+    # took about 12 minutes on 16 cores with no graphics card, inside the real
+    # pipeline. That is 80 seconds a frame, against the 25 this table used to
+    # claim -- the earlier number came from a bare prompt rather than the full
+    # one, which carries the window's dialogue as well. The others are scaled
+    # from it by size and remain estimates. Better to quote a discouraging
+    # number that holds up than a cheerful one that does not.
     MODELS = {
-        "moondream": {"gb": 2.0, "ram_gb": 4, "seconds_per_frame": 15},
-        "qwen2.5vl:3b": {"gb": 3.2, "ram_gb": 8, "seconds_per_frame": 25},
-        "llava:7b": {"gb": 4.7, "ram_gb": 12, "seconds_per_frame": 45},
-        "qwen2.5vl:7b": {"gb": 6.0, "ram_gb": 16, "seconds_per_frame": 55},
+        "moondream": {"gb": 2.0, "ram_gb": 4, "seconds_per_frame": 48},
+        "qwen2.5vl:3b": {"gb": 3.2, "ram_gb": 8, "seconds_per_frame": 80},
+        "llava:7b": {"gb": 4.7, "ram_gb": 12, "seconds_per_frame": 145},
+        "qwen2.5vl:7b": {"gb": 6.0, "ram_gb": 16, "seconds_per_frame": 175},
     }
+
+    # A graphics card is roughly an order of magnitude faster than a CPU here.
+    GPU_SPEEDUP = 10.0
 
     @classmethod
     def is_available(cls) -> bool:
         """True when an Ollama server answers on this machine."""
         try:
-            with urllib.request.urlopen(cls.BASE_URL + "/api/tags", timeout=3):
+            url = _check_http_url(cls.BASE_URL + "/api/tags")
+            with urllib.request.urlopen(url, timeout=3):  # noqa: S310  # nosec B310 - scheme checked
                 return True
-        except (urllib.error.URLError, OSError):
+        except (urllib.error.URLError, OSError, RuntimeError):
             return False
 
     @classmethod
@@ -302,9 +392,10 @@ class OllamaBackend(VisionBackend):
     def installed_models(cls) -> list[str]:
         """Vision models already pulled on this machine."""
         try:
-            with urllib.request.urlopen(cls.BASE_URL + "/api/tags", timeout=5) as response:
+            url = _check_http_url(cls.BASE_URL + "/api/tags")
+            with urllib.request.urlopen(url, timeout=5) as response:  # noqa: S310  # nosec B310 - scheme checked
                 data = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, OSError, ValueError):
+        except (urllib.error.URLError, OSError, ValueError, RuntimeError):
             return []
         names = [entry.get("name", "") for entry in data.get("models", [])]
         # Match on the family so "qwen2.5vl:3b" also matches a "-q4_K_M" variant.
@@ -318,14 +409,104 @@ class OllamaBackend(VisionBackend):
                       if ram_gb <= 0 or ram_gb - 2 >= spec["ram_gb"]]
         return affordable[-1] if affordable else "moondream"
 
+    @classmethod
+    def seconds_per_frame(cls, model: str, machine=None) -> float:
+        """How long one frame takes on this computer, in seconds."""
+        cost = cls.MODELS.get(model, cls.MODELS[cls.DEFAULT_MODEL])["seconds_per_frame"]
+        if machine is not None and getattr(machine, "has_gpu", False):
+            return cost / cls.GPU_SPEEDUP
+        return float(cost)
+
+    @classmethod
+    def verdict(cls, machine, model: str = "") -> tuple[str, str]:
+        """Whether running the local model here is a good idea.
+
+        Returns ``(level, explanation)`` where level is ``recommended`` on a
+        machine with a graphics card, ``slow`` when it will work but take
+        several times the length of the recording, and ``unusable`` when the
+        model will not fit in memory.
+
+        The local model is never hidden outright, however poor the verdict: it
+        is the only option that sends nothing over the internet, and that is
+        sometimes the whole reason for choosing it. It is only kept out of the
+        recommended slot, with the cost stated plainly.
+
+        ``model`` defaults to the one the pipeline actually runs when nothing
+        is configured, not to the largest that would fit. Quoting a cost for a
+        model the user has not got, and would not use, is worse than useless:
+        it is a number they will plan around.
+        """
+        model = model or cls.DEFAULT_MODEL
+        spec = cls.MODELS.get(model, cls.MODELS[cls.DEFAULT_MODEL])
+        ram = getattr(machine, "ram_gb", 0.0)
+
+        # Leave about 2 GB for the operating system, as system.can_run does.
+        if ram > 0 and ram - 2.0 < spec["ram_gb"]:
+            return "unusable", t("vision.local_no_ram", model=model,
+                                 needed=spec["ram_gb"], have=f"{ram:.0f}")
+
+        if getattr(machine, "has_gpu", False):
+            return "recommended", t("vision.local_gpu",
+                                    gpu=getattr(machine, "gpu_name", ""))
+
+        # Frames are sampled every frame_interval seconds, so the cost per
+        # second of video is seconds_per_frame / frame_interval. At the default
+        # of one frame per 10 s and 80 s a frame, that is 8x the recording.
+        ratio = cls.seconds_per_frame(model, machine) / 10.0
+        return "slow", t("vision.local_slow", model=model, ratio=f"{ratio:.0f}")
+
+    @classmethod
+    def max_frames_per_request(cls, machine=None) -> int:
+        """How many frames this computer can describe in one request."""
+        if machine is not None and getattr(machine, "has_gpu", False):
+            return cls.MAX_FRAMES_PER_REQUEST_GPU
+        return cls.MAX_FRAMES_PER_REQUEST_CPU
+
+    @classmethod
+    def plan_windows(cls, frame_interval: int, window_seconds: int,
+                     machine=None) -> WindowPlan:
+        """Shorten the window until a request holds a manageable number of frames.
+
+        The frame interval is left alone: it decides how much of the video is
+        looked at, and dropping frames to fit would silently reduce coverage.
+        Shortening the window keeps every frame and sends more, smaller
+        requests instead.
+        """
+        limit = cls.max_frames_per_request(machine)
+        frames = max(1, window_seconds // max(frame_interval, 1))
+        if frames <= limit:
+            return WindowPlan(frame_interval, window_seconds)
+
+        adjusted = max(frame_interval, frame_interval * limit)
+        return WindowPlan(
+            frame_interval, adjusted,
+            t("vision.window_shrunk", backend=cls.name, before=window_seconds,
+              after=adjusted, frames=limit),
+        )
+
+    @classmethod
+    def context_size(cls, image_count: int, prompt: str, num_predict: int) -> int:
+        """Tokens of context needed to hold this request and its answer.
+
+        Undersizing loses the whole request, so every term is rounded up: four
+        characters per token is generous for Spanish, and the answer has to fit
+        in the same window as the question.
+        """
+        needed = image_count * cls.TOKENS_PER_FRAME + len(prompt) // 3 + num_predict
+        return max(cls.MIN_CONTEXT, min(cls.MAX_CONTEXT, needed))
+
     def generate(self, prompt: str, images: list[Path], model: str) -> str:
+        # Long enough for a full paragraph about a two-minute stretch.
+        num_predict = 1600
         payload = {
             "model": model or self.DEFAULT_MODEL,
             "prompt": prompt,
             "images": [_read_image_as_base64(path) for path in images],
             "stream": False,
-            # Long enough for a full paragraph about a two-minute stretch.
-            "options": {"num_predict": 1600},
+            "options": {
+                "num_predict": num_predict,
+                "num_ctx": self.context_size(len(images), prompt, num_predict),
+            },
         }
         response = _post_json(self.BASE_URL + "/api/generate", payload, {})
         return (response.get("response") or "").strip()
@@ -401,12 +582,41 @@ def select_backend(preference: str = "auto") -> VisionBackend:
     return backend_class()
 
 
-def available_backends() -> list[tuple[str, bool, str]]:
-    """List every back end as ``(name, available, explanation)`` for the doctor."""
+def is_configured(machine=None) -> bool:
+    """True when some model could describe the picture right now.
+
+    The transcript never needs one, so this decides whether the visual
+    description is offered at all. Offering it and failing later wastes the
+    user's time on a video that may take half an hour to transcribe.
+    """
+    return any(ready for _, ready, _ in available_backends(machine))
+
+
+def available_backends(machine=None) -> list[tuple[str, bool, str]]:
+    """List every back end as ``(name, available, explanation)`` for the doctor.
+
+    Pass a :class:`~videoscribe.system.MachineProfile` to have the local back
+    end report what it will actually cost here. "Ready" on its own is
+    misleading for a model that runs on the user's own processor: it is ready
+    in the sense that it will start, not in the sense that it will finish today.
+    """
     rows = []
     for name, backend_class in BACKENDS.items():
         if name == "none":
             continue
         ready = backend_class.is_available()
-        rows.append((name, ready, "ready" if ready else backend_class.why_unavailable()))
+        if not ready:
+            rows.append((name, False, backend_class.why_unavailable()))
+            continue
+
+        explanation = "ready"
+        if machine is not None and hasattr(backend_class, "verdict"):
+            level, note = backend_class.verdict(machine)
+            # A model too big for this machine is not "ready" in any useful
+            # sense, so it is reported as unavailable rather than as a caveat.
+            if level == "unusable":
+                rows.append((name, False, note))
+                continue
+            explanation = note if level == "slow" else f"ready -- {note}"
+        rows.append((name, ready, explanation))
     return rows
