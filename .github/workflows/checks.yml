@@ -60,6 +60,32 @@ jobs:
       - name: Run every check
         run: python scripts/check.py
 
+  installers:
+    name: the installer runs on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # --dry-run exercises every detection path -- which Python is present,
+      # which package manager, whether ffmpeg is already installed -- and
+      # changes nothing. macOS is here because it cannot be tested any other
+      # way: containers share the host kernel, so there is no macOS image, and
+      # this runner is the only real Apple hardware available.
+      # Invoked as ./init.sh, not `bash init.sh`, on purpose. The README tells
+      # users to type exactly this, and `bash init.sh` runs even when the
+      # executable bit is missing -- which is how a clone that fails on the
+      # very first instruction went unnoticed until someone tried it.
+      - name: ./init.sh --dry-run
+        run: ./init.sh --dry-run
+
+      - name: ./init.sh --help
+        run: ./init.sh --help
+
   container:
     name: startup on Linux, in a container
     runs-on: ubuntu-latest
@@ -86,6 +112,20 @@ jobs:
           for f in init.sh run.sh tests/run_container_tests.sh; do
             if grep -q $'\r' "$f"; then
               echo "::error file=$f::has CRLF line endings and will not run on Linux"
+              exit 1
+            fi
+            echo "ok  $f"
+          done
+
+      # The README says to run `./init.sh`. Git records the executable bit, and
+      # a file committed from Windows without it clones read-only on Linux and
+      # macOS -- so the very first instruction fails with "Permission denied".
+      - name: Shell scripts must be executable
+        run: |
+          for f in init.sh run.sh tests/run_container_tests.sh; do
+            mode=$(git ls-files -s "$f" | cut -d' ' -f1)
+            if [ "$mode" != "100755" ]; then
+              echo "::error file=$f::is mode $mode, not 100755; ./$f will fail with Permission denied"
               exit 1
             fi
             echo "ok  $f"
