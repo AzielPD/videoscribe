@@ -386,7 +386,8 @@ MESSAGES: dict[str, dict[str, str]] = {
     },
     "detail.sections_failed": {
         "en": "{count} section(s) failed. Re-run with --resume to retry only those.",
-        "es": "{count} seccion(es) fallaron. Vuelve a correr con --resume para reintentar solo esas.",
+        "es": ("{count} seccion(es) fallaron. Vuelve a correr con --resume "
+               "para reintentar solo esas."),
     },
     "detail.sections_described": {
         "en": "{done} of {total} sections described",
@@ -395,6 +396,68 @@ MESSAGES: dict[str, dict[str, str]] = {
     "detail.invented_removed": {
         "en": "({count} invented timecode(s) removed)",
         "es": "({count} marca(s) de tiempo inventada(s) eliminada(s))",
+    },
+    "menu.describe_unavailable": {
+        "en": "(not available -- no image model is set up on this computer)",
+        "es": "(no disponible -- no hay modelo de imagen configurado en esta computadora)",
+    },
+    "vision.not_set_up_header": {
+        "en": "THE DESCRIPTION NEEDS AN IMAGE MODEL",
+        "es": "LA DESCRIPCION NECESITA UN MODELO DE IMAGEN",
+    },
+    "vision.not_set_up_explain": {
+        "en": ("The transcript and the subtitles work with nothing else installed, "
+               "and they are what most people need. Describing what is on screen is "
+               "the one part that needs a model able to look at images, and none is "
+               "set up here yet."),
+        "es": ("La transcripcion y los subtitulos funcionan sin instalar nada mas, y "
+               "son lo que la mayoria necesita. Describir lo que se ve en pantalla es "
+               "la unica parte que necesita un modelo capaz de ver imagenes, y aqui "
+               "todavia no hay ninguno configurado."),
+    },
+    "vision.not_set_up_options": {
+        "en": ("The quickest is a Google Gemini key: it has a free tier and needs only "
+               "the Google account you already have. If you already pay for Claude, "
+               "installing the 'claude' command and signing in once also works."),
+        "es": ("Lo mas rapido es una clave de Google Gemini: tiene capa gratuita y solo "
+               "necesita la cuenta de Google que ya tienes. Si ya pagas Claude, tambien "
+               "sirve instalar el comando 'claude' y entrar una vez."),
+    },
+    "vision.not_set_up_docs": {
+        "en": "Step by step: the 'Describing what is on screen' section of README.md",
+        "es": "Paso a paso: la seccion 'Describir lo que se ve en pantalla' de README.es.md",
+    },
+    "vision.set_up_now": {
+        "en": "Set one up now?",
+        "es": "Configurar uno ahora?",
+    },
+    "vision.local_gpu": {
+        "en": "Your {gpu} can run this at a sensible speed.",
+        "es": "Tu {gpu} puede con esto a una velocidad razonable.",
+    },
+    "vision.local_slow": {
+        "en": ("Works, but slowly: no graphics card was found, so '{model}' needs "
+               "roughly {ratio} times the length of the recording. A one-hour "
+               "video would take most of a day. It also tends to leave out the "
+               "timecodes that make the account checkable."),
+        "es": ("Funciona, pero lento: no se encontro tarjeta grafica, asi que '{model}' "
+               "necesita unas {ratio} veces la duracion de la grabacion. Un video de "
+               "una hora tomaria casi un dia. Ademas suele omitir las marcas de tiempo "
+               "que hacen verificable el relato."),
+    },
+    "vision.local_no_ram": {
+        "en": ("Not enough memory: '{model}' needs about {needed} GB and this "
+               "computer has {have} GB."),
+        "es": ("No hay memoria suficiente: '{model}' necesita unos {needed} GB y esta "
+               "computadora tiene {have} GB."),
+    },
+    "vision.window_shrunk": {
+        "en": ("Sections shortened from {before}s to {after}s: '{backend}' can "
+               "describe {frames} frames per request on this computer. Every "
+               "frame is still looked at, in more and smaller requests."),
+        "es": ("Los tramos se acortaron de {before}s a {after}s: '{backend}' puede "
+               "describir {frames} fotogramas por peticion en esta computadora. Se "
+               "siguen viendo todos los fotogramas, en mas peticiones y mas cortas."),
     },
 
     # --- Progress bar words ----------------------------------------------
@@ -415,9 +478,20 @@ MESSAGES: dict[str, dict[str, str]] = {
               "persona como una guia aproximada, y considera volver a correr "
               "indicando cuantas personas hablan.",
     },
+    "warn.audio_only_no_description": {
+        "en": ("This is an audio recording, so there is nothing on screen to "
+               "describe. The transcript and subtitles are produced as usual."),
+        "es": ("Esto es una grabacion de audio, asi que no hay nada en pantalla "
+               "que describir. La transcripcion y los subtitulos se generan igual."),
+    },
     "warn.vision_skipped": {
-        "en": "Visual description skipped: no image model configured.",
-        "es": "Se omitio la descripcion visual: no hay modelo de imagen configurado.",
+        "en": ("Visual description skipped: no image model configured. The transcript "
+               "and subtitles below are complete. To enable the description, see the "
+               "'Describing what is on screen' section of README.md."),
+        "es": ("Se omitio la descripcion visual: no hay modelo de imagen configurado. "
+               "La transcripcion y los subtitulos de abajo estan completos. Para "
+               "habilitar la descripcion, ve la seccion 'Describir lo que se ve en "
+               "pantalla' de README.es.md."),
     },
     "error.no_audio": {
         "en": "{name} has no audio track, so there is nothing to transcribe.",
@@ -763,6 +837,141 @@ MESSAGES: dict[str, dict[str, str]] = {
               "{threads} threads each",
         "es": "Se divide en {parts} partes transcritas al mismo tiempo, "
               "{threads} hilos cada una",
+    },
+
+    # --- Network preflight ------------------------------------------------
+    "network.header": {
+        "en": "CAN THIS COMPUTER REACH WHAT IT NEEDS?",
+        "es": "PUEDE ESTA COMPUTADORA ALCANZAR LO QUE NECESITA?",
+    },
+    "network.checking": {
+        "en": "Checking each server... this takes a few seconds.",
+        "es": "Revisando cada servidor... tarda unos segundos.",
+    },
+    "network.col_service": {"en": "service", "es": "servicio"},
+    "network.col_status": {"en": "status", "es": "estado"},
+    "network.col_purpose": {"en": "what it is for", "es": "para que sirve"},
+    "network.status_ok": {"en": "ok", "es": "ok"},
+    "network.status_blocked": {"en": "BLOCKED", "es": "BLOQUEADO"},
+    "network.status_unreachable": {"en": "no answer", "es": "sin respuesta"},
+
+    # What each server is for, in plain words.
+    "network.purpose_whisper": {
+        "en": "downloading the speech models",
+        "es": "descargar los modelos de voz",
+    },
+    "network.purpose_whisper_files": {
+        "en": "the speech model files themselves",
+        "es": "los archivos de los modelos de voz",
+    },
+    "network.purpose_ffmpeg_windows": {
+        "en": "the portable ffmpeg for Windows",
+        "es": "el ffmpeg portable para Windows",
+    },
+    "network.purpose_ffmpeg_linux": {
+        "en": "the portable ffmpeg for Linux",
+        "es": "el ffmpeg portable para Linux",
+    },
+    "network.purpose_ollama_manifest": {
+        "en": "finding a local vision model",
+        "es": "encontrar un modelo de imagen local",
+    },
+    "network.purpose_ollama_weights": {
+        "en": "downloading a local vision model",
+        "es": "descargar un modelo de imagen local",
+    },
+    "network.purpose_anthropic": {
+        "en": "describing the video with Anthropic",
+        "es": "describir el video con Anthropic",
+    },
+    "network.purpose_openai": {
+        "en": "describing the video with OpenAI",
+        "es": "describir el video con OpenAI",
+    },
+    "network.purpose_gemini": {
+        "en": "describing the video with Google Gemini",
+        "es": "describir el video con Google Gemini",
+    },
+    "network.purpose_ollama_local": {
+        "en": "the local model server, if you run one",
+        "es": "el servidor de modelos local, si lo usas",
+    },
+
+    # The one-line verdict.
+    "network.all_reachable": {
+        "en": "Everything is reachable. Nothing is being blocked.",
+        "es": "Todo es alcanzable. Nada esta bloqueado.",
+    },
+    "network.no_internet": {
+        "en": "Nothing answered. This computer appears to have no internet "
+              "connection at all.",
+        "es": "Nada respondio. Esta computadora parece no tener conexion a "
+              "internet.",
+    },
+    "network.required_blocked": {
+        "en": "Something needed for the transcript is blocked. Until it is "
+              "opened, a model that is not already downloaded cannot be fetched.",
+        "es": "Algo necesario para la transcripcion esta bloqueado. Hasta que se "
+              "abra, no se puede bajar un modelo que no este ya descargado.",
+    },
+    "network.some_blocked": {
+        "en": "The essentials work. Some optional services are blocked, so the "
+              "features that use them will not work on this network.",
+        "es": "Lo esencial funciona. Hay servicios opcionales bloqueados, asi que "
+              "las funciones que los usan no serviran en esta red.",
+    },
+
+    # What a blockage costs, by feature.
+    "network.broken_whisper": {
+        "en": "Speech models cannot be downloaded. Models already on this "
+              "computer still work.",
+        "es": "No se pueden descargar modelos de voz. Los que ya estan en esta "
+              "computadora siguen funcionando.",
+    },
+    "network.broken_ollama": {
+        "en": "A local vision model cannot be downloaded. Download it on another "
+              "network; once it is here it works offline forever.",
+        "es": "No se puede descargar un modelo de imagen local. Bajalo en otra "
+              "red; una vez aqui funciona sin internet para siempre.",
+    },
+    "network.broken_cloud_vision": {
+        "en": "No cloud image model is reachable, so the video cannot be "
+              "described that way. The transcript is unaffected.",
+        "es": "Ningun modelo de imagen en la nube es alcanzable, asi que el video "
+              "no se puede describir por esa via. La transcripcion no se afecta.",
+    },
+    "network.broken_ffmpeg": {
+        "en": "The portable ffmpeg cannot be downloaded. Install ffmpeg by hand "
+              "or through your package manager instead.",
+        "es": "No se puede descargar el ffmpeg portable. Instala ffmpeg a mano o "
+              "con tu gestor de paquetes.",
+    },
+    "network.firewall_hint": {
+        "en": "A server that answers on one address and times out on another is "
+              "the signature of a firewall filtering by destination, not of a "
+              "broken connection. Whoever runs the network can open it.",
+        "es": "Que un servicio responda en una direccion y expire en otra es la "
+              "firma de un firewall que filtra por destino, no de una conexion "
+              "rota. Quien administra la red puede abrirlo.",
+    },
+
+    "doctor.network_hint_header": {"en": "NETWORK", "es": "RED"},
+    "doctor.network_hint": {
+        "en": "Downloads failing on a corporate network is common, and the cause "
+              "is rarely obvious. Run:  python videoscribe.py network",
+        "es": "Que fallen las descargas en una red corporativa es comun, y la "
+              "causa rara vez es obvia. Corre:  python videoscribe.py network",
+    },
+
+    "network.handshake_caveat": {
+        "en": "\"ok\" means the route opens, not that a large download will "
+              "finish. A firewall can allow the connection and then throttle the "
+              "transfer, which looks like a broken program rather than a blocked "
+              "network.",
+        "es": "\"ok\" significa que la ruta abre, no que una descarga grande vaya "
+              "a terminar. Un firewall puede permitir la conexion y luego "
+              "estrangular la transferencia, lo que parece un programa roto en "
+              "vez de una red bloqueada.",
     },
 
 }

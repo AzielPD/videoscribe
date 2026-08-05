@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import textwrap
 from pathlib import Path
 
 from .config import load_config
@@ -94,6 +95,8 @@ def build_parser() -> argparse.ArgumentParser:
                           help="check the installation and this computer")
     subparsers.add_parser("models", parents=[common],
                           help="list transcription models and their cost here")
+    subparsers.add_parser("network", parents=[common],
+                          help="check which servers this computer can reach")
 
     return parser
 
@@ -139,8 +142,14 @@ def command_doctor(requested: str | None = None) -> int:
             problems += 1
 
     print(f"\n{RULE}\n {t('doctor.vision_header')}\n{RULE}")
-    for name, ready, explanation in available_backends():
-        print(f"  [{'OK     ' if ready else 'not set'}] {name:<16} {explanation}")
+    for name, ready, explanation in available_backends(machine):
+        label = f"  [{'OK     ' if ready else 'not set'}] {name:<16} "
+        # The local back end explains its cost at length; wrap it under the
+        # name rather than running off the edge of the terminal.
+        wrapped = textwrap.wrap(explanation, width=70 - len(label)) or [""]
+        print(label + wrapped[0])
+        for line in wrapped[1:]:
+            print(" " * len(label) + line)
 
     print(f"\n{RULE}\n {t('doctor.recommendation')}\n{RULE}")
     print("  " + t("doctor.model_line", model=recommended))
@@ -188,6 +197,82 @@ def command_models(requested: str | None = None) -> int:
     print("\n  " + t("models.change_with"))
     print("  " + t("models.or_permanently") + "\n")
     return 0
+
+
+def print_network_report() -> list:
+    """Check every server the toolkit uses and explain what is blocked.
+
+    Written as its own function because both ``videoscribe network`` and the
+    doctor screen show it. Returns the raw results so the caller can decide
+    what to do about them.
+    """
+    from .network import LOCAL_OLLAMA, blocked_features, check_all, diagnose
+
+    print(f"\n{RULE}\n {t('network.header')}\n{RULE}")
+    print("  " + t("network.checking") + "\n")
+
+    results = check_all()
+
+    width = max(len(r.endpoint.label) for r in results)
+    for result in results:
+        if result.ok:
+            status = f"{t('network.status_ok'):<12}"
+            timing = f"{result.milliseconds:>5} ms"
+        else:
+            key = ("network.status_unreachable" if result.kind == "unreachable"
+                   else "network.status_blocked")
+            status = f"{t(key):<12}"
+            timing = " " * 8
+        # The local server is a different kind of check; mark it as optional
+        # rather than reporting "blocked" when the user simply is not running it.
+        mark = " " if result.endpoint is not LOCAL_OLLAMA else "*"
+        print(f"  {mark} {result.endpoint.label.ljust(width)}  {status} {timing}  "
+              f"{t(result.endpoint.purpose_key)}")
+
+    verdict = diagnose(results)
+    if verdict:
+        print()
+        for line in _wrap_console(t(verdict)):
+            print(f"  {line}")
+
+    # Never let a screen full of "ok" be read as "downloads will work".
+    print()
+    for line in _wrap_console(t("network.handshake_caveat")):
+        print(f"  {line}")
+
+    broken = blocked_features(results)
+    if broken:
+        print()
+        for key in broken:
+            for index, line in enumerate(_wrap_console(t(key))):
+                print(f"  {'- ' if index == 0 else '  '}{line}")
+        print()
+        for line in _wrap_console(t("network.firewall_hint")):
+            print(f"  {line}")
+    print()
+    return results
+
+
+def _wrap_console(text: str, width: int = 68) -> list[str]:
+    """Wrap a sentence so it stays inside a narrow terminal."""
+    words, lines, current = str(text).split(), [], ""
+    for word in words:
+        if len(current) + len(word) + 1 > width:
+            lines.append(current)
+            current = word
+        else:
+            current = f"{current} {word}".strip()
+    if current:
+        lines.append(current)
+    return lines
+
+
+def command_network(requested: str | None = None) -> int:
+    config = load_config()
+    apply_language(config, requested)
+    results = print_network_report()
+    # Only a blocked *required* service is an error worth a non-zero exit.
+    return 1 if any(r.endpoint.required and not r.ok for r in results) else 0
 
 
 def command_run(args: argparse.Namespace) -> int:
@@ -254,6 +339,8 @@ def main(argv: list[str] | None = None) -> int:
         return command_doctor(requested)
     if args.command == "models":
         return command_models(requested)
+    if args.command == "network":
+        return command_network(requested)
     if args.command == "run":
         return command_run(args)
 
