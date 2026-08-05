@@ -117,6 +117,27 @@ wrappers relax the preference around the call and judge by exit code. Do not
 characters are read as the system code page. The scripts here are ASCII-only as
 well, as a second line of defence.
 
+**Editing a file with Python on Windows converts it to CRLF.** `Path.write_text`
+uses text mode, which translates `\n` to `\r\n`. `.gitattributes` normalises it
+back on commit, so the repository stays correct and nothing looks wrong — but the
+*working tree* is now CRLF, and the container tests build from the working tree,
+not from git. The result is `init.sh: syntax error near unexpected token $'do\r'`
+inside the image while the same file on GitHub is fine. Pass `newline=""` to both
+`read_text` and `write_text`, or use the Edit tool. To repair a tree that already
+drifted: `git rm --cached -r . && git reset --hard`.
+
+**The executable bit is part of the commit.** `init.sh` and `run.sh` are mode
+100755 in git. Committed from Windows without it they clone read-only, and
+`./init.sh` — the very first line of the README — fails with "Permission denied".
+Nothing caught this for a while because every test ran `bash init.sh`, which
+ignores the bit. The CI now types `./init.sh`, and a check rejects any mode other
+than 100755.
+
+**Debian and Ubuntu ship Python without `ensurepip`.** `python3 -m venv` fails
+until `python3-venv` is installed, which is a separate package. `init.sh` installs
+it and retries, then falls back to a `--user` install, because the raw failure
+stops the script with Python's own message about apt.
+
 **Python's `int()` truncates; PowerShell's `[int]` rounds.** See rule 1.
 
 **Ollama gives a model 4096 tokens of context unless you ask for more.** One frame

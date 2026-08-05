@@ -13,7 +13,7 @@
 #  Usage:
 #      ./init.sh                 normal setup
 #      ./init.sh --dry-run       show what would happen, change nothing
-#      ./init.sh --no-venv       install packages system-wide instead
+#      ./init.sh --no-venv       install for your user account instead
 # ============================================================================
 
 set -euo pipefail
@@ -179,20 +179,45 @@ if [ "$USE_VENV" -eq 1 ]; then
     # which several Linux distributions now refuse to modify (PEP 668).
     if [ ! -d .venv ]; then
         info "Creating a private Python environment in .venv"
-        run "$PYTHON" -m venv .venv
+        # Debian and Ubuntu ship Python without ensurepip, in a separate
+        # python3-venv package, so this fails on a fresh install of the most
+        # common Linux family. Left alone it stops the whole script with
+        # Python's own message about apt, which is not something we should
+        # make the user read. Install the missing piece and try once more.
+        if ! run "$PYTHON" -m venv .venv >/dev/null 2>&1; then
+            rm -rf .venv
+            if [ "$INSTALLER" = "apt" ]; then
+                warn "This Python cannot create environments on its own."
+                info "Installing the python3-venv package, then trying again."
+                install_package python3-venv "python3-venv" || true
+            fi
+            if ! run "$PYTHON" -m venv .venv >/dev/null 2>&1; then
+                rm -rf .venv
+                warn "Could not create a private environment."
+                info "Falling back to installing for your user account only."
+                USE_VENV=0
+            fi
+        fi
     else
         info "Reusing the existing .venv"
     fi
+fi
+
+if [ "$USE_VENV" -eq 1 ]; then
     VENV_PYTHON="$REPO_ROOT/.venv/bin/python"
     [ "$DRY_RUN" -eq 1 ] && VENV_PYTHON="$PYTHON"
+    PIP_SCOPE=""
 else
     VENV_PYTHON="$PYTHON"
-    info "Installing system-wide, as requested with --no-venv"
+    # Without an environment, --user is the only place left that does not need
+    # root and does not fall foul of PEP 668's "externally managed" refusal.
+    PIP_SCOPE="--user"
+    info "Installing for your user account, not system-wide."
 fi
 
 info "This downloads a few hundred megabytes the first time."
-run "$VENV_PYTHON" -m pip install --quiet --disable-pip-version-check --upgrade pip
-run "$VENV_PYTHON" -m pip install --disable-pip-version-check -r requirements.txt
+run "$VENV_PYTHON" -m pip install --quiet --disable-pip-version-check $PIP_SCOPE --upgrade pip
+run "$VENV_PYTHON" -m pip install --disable-pip-version-check $PIP_SCOPE -r requirements.txt
 ok "Packages installed."
 
 # --- 4. Folders -------------------------------------------------------------
