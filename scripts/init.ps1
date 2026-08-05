@@ -18,15 +18,15 @@
     plan without changing anything.
 
 .EXAMPLE
-    .\init.ps1
+    .\scripts\init.ps1
     Normal setup.
 
 .EXAMPLE
-    .\init.ps1 -WhatIf
+    .\scripts\init.ps1 -WhatIf
     Show what would be installed, change nothing.
 
 .EXAMPLE
-    .\init.ps1 -SkipPython
+    .\scripts\init.ps1 -SkipPython
     Use the Python already on this machine even if it looks old.
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -46,7 +46,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+# This script lives in scripts/, so the repository is its parent. Everything
+# below -- requirements.txt, .env, videoscribe.py -- is looked up from there.
+$RepoRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Definition)
 $MinimumPython = [version]'3.9'
 
 # --- Small output helpers --------------------------------------------------

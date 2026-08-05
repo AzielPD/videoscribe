@@ -2,8 +2,8 @@
 REM ===========================================================================
 REM  VideoScribe setup for Windows.
 REM
-REM  Double-click this file. It hands over to init.ps1, which installs anything
-REM  that is missing: Python, ffmpeg, and the Python packages.
+REM  Double-click this file. It hands over to scripts\init.ps1, which installs
+REM  anything that is missing: Python, ffmpeg, and the Python packages.
 REM
 REM  This wrapper exists so nobody has to know about PowerShell execution
 REM  policies -- -ExecutionPolicy Bypass applies to this one run only and
@@ -26,7 +26,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0init.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\init.ps1" %*
 set EXITCODE=%ERRORLEVEL%
 
 echo.
