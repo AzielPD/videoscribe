@@ -18,7 +18,10 @@ from pathlib import Path
 # Allow running from any working directory, e.g. by double-clicking run.cmd.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-if sys.version_info < (3, 9):  # pragma: no cover - guard for very old systems
+# noqa: UP036 - deliberately checks a version below the supported floor. This
+# file parses on 3.8, so the guard is what turns a baffling crash into a
+# sentence telling the user to upgrade.
+if sys.version_info < (3, 9):  # noqa: UP036 - pragma: no cover
     sys.exit(
         "VideoScribe needs Python 3.9 or newer.\n"
         f"This is Python {'.'.join(str(n) for n in sys.version_info[:3])}.\n"
@@ -32,4 +35,5 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except KeyboardInterrupt:
         print("\nStopped by the user.")
-        raise SystemExit(130)
+        # `from None`: Ctrl-C is the user's decision, not an error to report.
+        raise SystemExit(130) from None

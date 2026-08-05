@@ -22,8 +22,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .i18n import t
 from .features import SAMPLE_RATE, segment_features
+from .i18n import t
 
 # Segments shorter than this are too noisy to define a cluster; they are still
 # labelled, but only after the clusters have been fixed by the longer ones.

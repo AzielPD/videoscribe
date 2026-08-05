@@ -88,7 +88,7 @@ class Reporter:
         self._write(f"      -> {message}\n")
 
     # --- Progress bars ----------------------------------------------------
-    def bar(self, total: float, unit: str = "plain") -> "ProgressBar":
+    def bar(self, total: float, unit: str = "plain") -> ProgressBar:
         """Create a bar bound to this reporter.
 
         ``unit`` selects how the numbers are rendered: ``"time"`` shows
@@ -113,7 +113,7 @@ class ProgressBar:
         self._last_render = 0.0
         self._finished = False
 
-    def __enter__(self) -> "ProgressBar":
+    def __enter__(self) -> ProgressBar:
         return self
 
     def __exit__(self, *exc_info) -> None:

@@ -22,9 +22,9 @@ import os
 import threading
 import warnings
 import wave
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 from .i18n import t
 from .timecode import format_timecode

@@ -150,7 +150,7 @@ def choose_split_points(
         points.append(min(candidates)[1])
 
     # Guard against two boundaries collapsing onto the same silence.
-    points = sorted(set(round(point, 3) for point in points))
+    points = sorted({round(point, 3) for point in points})
     if len(points) != workers - 1:
         return []
     if any(later - earlier < 1.0 for earlier, later in zip(points, points[1:])):

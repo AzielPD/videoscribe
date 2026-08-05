@@ -87,8 +87,9 @@ def _run_ffmpeg(args: list[str], total_seconds: float = 0.0, on_progress=None) -
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True, bufsize=1,
     )
-    assert process.stdout is not None
-    for line in process.stdout:
+    # stdout=PIPE guarantees this, but `python -O` strips asserts, so the
+    # promise is stated as a comment rather than enforced at a cost.
+    for line in process.stdout:  # noqa: S101 - see above
         key, _, value = line.strip().partition("=")
         if key == "out_time_ms" and value.isdigit():
             on_progress(min(int(value) / 1_000_000.0, total_seconds))
@@ -98,7 +99,9 @@ def _run_ffmpeg(args: list[str], total_seconds: float = 0.0, on_progress=None) -
     process.wait()
     if process.returncode != 0:
         stderr = process.stderr.read() if process.stderr else ""
-        raise RuntimeError(f"ffmpeg failed (exit code {process.returncode}):\n{stderr.strip()[:500]}")
+        raise RuntimeError(
+            f"ffmpeg failed (exit code {process.returncode}):\n{stderr.strip()[:500]}"
+        )
 
 
 def _time_args(start: str | None, duration: str | None) -> list[str]:
@@ -134,7 +137,8 @@ def extract_audio(
     args = [ffmpeg, "-hide_banner", "-y"]
     args += _time_args(start, duration)
     args += ["-i", str(video)]
-    args += ["-vn", "-map", "0:a:0", "-c:a", "libmp3lame", "-b:a", bitrate, "-ac", "1", str(mp3_path)]
+    args += ["-vn", "-map", "0:a:0", "-c:a", "libmp3lame",
+             "-b:a", bitrate, "-ac", "1", str(mp3_path)]
     if wav_path is not None:
         wav_path.parent.mkdir(parents=True, exist_ok=True)
         args += [

@@ -164,7 +164,8 @@ def write_narrative_txt(
     return _write_text(path, _header(t("file.narrative_title"), rows) + account.strip() + "\n")
 
 
-def write_narrative_markdown(path: Path, source_name: str, sections: list[tuple[float, str]]) -> Path:
+def write_narrative_markdown(path: Path, source_name: str,
+                             sections: list[tuple[float, str]]) -> Path:
     """The account split into sections, one per window, each with its timecode."""
     lines = [
         f"# {t('file.sections_title', name=source_name)}",

@@ -64,7 +64,10 @@ def find_ffmpeg(override: str = "") -> str:
 
     hints = WINDOWS_FFMPEG_HINTS if os.name == "nt" else UNIX_FFMPEG_HINTS
     for pattern in hints:
-        for candidate in sorted(glob.glob(pattern)):
+        # glob.glob, not Path.glob: these patterns are absolute and carry a
+        # wildcard in the middle ("C:/ffmpeg/*/bin/ffmpeg.exe"), which Path.glob
+        # cannot express without first guessing a base directory.
+        for candidate in sorted(glob.glob(pattern)):  # noqa: PTH207 - see above
             if Path(candidate).is_file():
                 return candidate
 
@@ -129,7 +132,8 @@ def check_all(ffmpeg_override: str = "") -> list[ToolStatus]:
     import sys
 
     version = ".".join(str(n) for n in sys.version_info[:3])
-    results.append(ToolStatus("python", sys.version_info >= (3, 9), f"{version} at {sys.executable}"))
+    results.append(ToolStatus("python", sys.version_info >= (3, 9),
+                              f"{version} at {sys.executable}"))
 
     try:
         path = find_ffmpeg(ffmpeg_override)
@@ -161,7 +165,8 @@ def check_all(ffmpeg_override: str = "") -> list[ToolStatus]:
 
         results.append(ToolStatus("numpy", True, f"version {numpy.__version__}"))
     except ImportError:
-        results.append(ToolStatus("numpy", False, "not installed -- run:  pip install -r requirements.txt"))
+        results.append(ToolStatus("numpy", False,
+                                  "not installed -- run:  pip install -r requirements.txt"))
 
     try:
         results.append(ToolStatus("claude CLI", True, find_claude(), required=False))
