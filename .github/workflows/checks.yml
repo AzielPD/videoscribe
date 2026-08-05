@@ -1,0 +1,111 @@
+# Runs the same checks a developer runs locally, on every push.
+#
+#     python scripts/check.py
+#
+# Nothing here is CI-only: if this passes and your machine does not, the
+# difference is your machine, not a special build configuration.
+
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first; there is no value in
+# finishing a run against code nobody is looking at any more.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: ${{ matrix.os }} · Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The README promises Python 3.9 or newer. That claim is worth
+          # testing rather than asserting.
+          - os: ubuntu-latest
+            python: "3.9"
+          - os: ubuntu-latest
+            python: "3.13"
+          # Windows is the platform most users are on, and the one where the
+          # line endings and path separators actually differ.
+          - os: windows-latest
+            python: "3.13"
+          - os: macos-latest
+            python: "3.13"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run every check
+        run: python scripts/check.py
+
+  container:
+    name: startup on Linux, in a container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 56 checks covering everything a user meets before any video is
+      # processed: the menu, tool discovery, and the messages shown when
+      # something is missing. They transcribe nothing, so they finish fast.
+      - name: Container tests
+        run: ENGINE=docker bash tests/run_container_tests.sh
+
+  endings:
+    name: line endings survive a fresh clone
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A clone on Windows with core.autocrlf=true used to rewrite the shell
+      # scripts with CRLF, and they then failed on Linux with
+      # "$'\r': command not found". .gitattributes pins them; this proves it.
+      - name: Shell scripts must be LF
+        run: |
+          for f in init.sh run.sh tests/run_container_tests.sh; do
+            if grep -q $'\r' "$f"; then
+              echo "::error file=$f::has CRLF line endings and will not run on Linux"
+              exit 1
+            fi
+            echo "ok  $f"
+          done
+
+      - name: Windows scripts must be CRLF
+        run: |
+          for f in init.cmd run.cmd; do
+            if ! grep -q $'\r' "$f"; then
+              echo "::error file=$f::is missing CRLF line endings that cmd.exe needs"
+              exit 1
+            fi
+            echo "ok  $f"
+          done
+
+      # Windows PowerShell 5.1 reads a BOM-less file as the system code page,
+      # which mangles any non-ASCII character in the installer's output.
+      - name: The PowerShell installer must keep its BOM
+        run: |
+          if [ "$(head -c 3 scripts/init.ps1 | xxd -p)" != "efbbbf" ]; then
+            echo "::error file=scripts/init.ps1::lost its UTF-8 BOM"
+            exit 1
+          fi
+          echo "ok  scripts/init.ps1"
