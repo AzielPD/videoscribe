@@ -157,15 +157,58 @@ def install_with_package_manager(on_message=print) -> str | None:
         return None
 
 
+def _zip_names_staying_inside(bundle: zipfile.ZipFile, destination: Path) -> list[str]:
+    """Return the archive's entry names, refusing any that escape ``destination``.
+
+    ``ZipFile.extractall`` already drops drive letters and ``..`` segments, but
+    that is an implementation detail of the standard library rather than a
+    promise. Checking here costs nothing and means the Windows route -- the one
+    most users take -- is guarded by the same rule as the Linux one.
+    """
+    root = destination.resolve()
+    names = bundle.namelist()
+    for name in names:
+        if not (root / name).resolve().is_relative_to(root):
+            raise ValueError(f"Archive entry escapes the target folder: {name}")
+    return names
+
+
+def _members_staying_inside(bundle: tarfile.TarFile, destination: Path):
+    """Yield only the archive entries that unpack inside ``destination``.
+
+    A tar entry may name ``../../etc/something`` or be a symlink pointing out
+    of the tree, and plain ``extractall`` will happily follow it. Python's
+    ``filter="data"`` refuses those, but it is missing from older releases, and
+    the fallback used to be an unfiltered extract -- which is precisely the
+    thing being guarded against. This does the check by hand instead, so an
+    old Python is slower to unpack rather than unsafe.
+    """
+    root = destination.resolve()
+    for member in bundle.getmembers():
+        target = (root / member.name).resolve()
+        if not target.is_relative_to(root):
+            raise ValueError(f"Archive entry escapes the target folder: {member.name}")
+        if member.issym() or member.islnk():
+            link = (target.parent / member.linkname).resolve()
+            if not link.is_relative_to(root):
+                raise ValueError(f"Archive link points outside: {member.name}")
+        yield member
+
+
 def _download(url: str, target: Path, on_progress=None) -> Path:
     """Fetch a URL to a file, reporting bytes as they arrive."""
-    target.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "VideoScribe"})
+    # Only ever fetch over TLS. Without this a tampered build table -- or a
+    # redirect -- could name file:// and have the "download" read local disk.
+    if not url.lower().startswith("https://"):
+        raise ValueError(f"Refusing to download over anything but HTTPS: {url}")
 
-    with urllib.request.urlopen(request, timeout=120) as response:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    request = urllib.request.Request(url, headers={"User-Agent": "VideoScribe"})  # noqa: S310 - HTTPS enforced above
+
+    with urllib.request.urlopen(request, timeout=120) as response:  # noqa: S310  # nosec B310 - HTTPS enforced above
         total = int(response.headers.get("Content-Length") or 0)
         done = 0
-        with open(target, "wb") as handle:
+        with target.open("wb") as handle:
             while True:
                 chunk = response.read(256 * 1024)
                 if not chunk:
@@ -218,15 +261,20 @@ def install_portable(on_message=print, on_progress=None) -> str | None:
     try:
         if build["archive"] == "zip":
             with zipfile.ZipFile(archive) as bundle:
-                bundle.extractall(unpacked)
+                bundle.extractall(  # noqa: S202  # nosec B202 - names validated by _zip_names_staying_inside
+                    unpacked, members=_zip_names_staying_inside(bundle, unpacked)
+                )
         else:
             with tarfile.open(archive) as bundle:
                 # filter="data" refuses absolute paths and symlinks pointing
-                # outside the destination. Older Pythons lack it.
+                # outside the destination. Older Pythons lack it, so the same
+                # check is applied by hand rather than extracting unfiltered.
                 try:
-                    bundle.extractall(unpacked, filter="data")
+                    bundle.extractall(unpacked, filter="data")  # noqa: S202 - filtered
                 except TypeError:
-                    bundle.extractall(unpacked)
+                    bundle.extractall(  # noqa: S202  # nosec B202 - members validated by _members_staying_inside
+                        unpacked, members=_members_staying_inside(bundle, unpacked)
+                    )
     except Exception as exc:  # noqa: BLE001
         on_message(f"Could not unpack the download: {exc}")
         return None
