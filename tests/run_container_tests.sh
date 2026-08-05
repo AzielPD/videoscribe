@@ -21,11 +21,24 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 PASSED=0
 FAILED=0
+SKIPPED=0
+
+have_curl() { command -v curl >/dev/null 2>&1; }
+
+skip() {
+    # skip <name> <why>
+    # Counted and printed, never hidden: a check that did not run is not a
+    # check that passed, and the reason has to be on screen to be judged.
+    printf '%s  SKIP%s  %s\n' "${C_YELLOW:-}" "${C_OFF:-}" "$1"
+    printf '%s        %s%s\n' "${C_DIM:-}" "$2" "${C_OFF:-}"
+    SKIPPED=$((SKIPPED + 1))
+}
 
 if [ -t 1 ]; then
-    C_GREEN=$'\033[32m'; C_RED=$'\033[31m'; C_DIM=$'\033[2m'; C_OFF=$'\033[0m'
+    C_GREEN=$'\033[32m'; C_RED=$'\033[31m'; C_DIM=$'\033[2m'
+    C_YELLOW=$'\033[33m'; C_OFF=$'\033[0m'
 else
-    C_GREEN=''; C_RED=''; C_DIM=''; C_OFF=''
+    C_GREEN=''; C_RED=''; C_DIM=''; C_YELLOW=''; C_OFF=''
 fi
 
 # check <name> <stdin> <expected exit code> <pattern that must appear> [command...]
@@ -263,9 +276,22 @@ check_root "a missing ffmpeg is offered, not just reported"     "3
 check_root "the portable route says it needs no permissions"     "3
 " 2 "no permissions needed"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
 
-check_root "accepting the portable download really installs it"     "2
+# The only check that proves the portable install actually works, and the only
+# one that fetches ~30 MB from a third party to do it. That download is outside
+# our control: johnvansickle.com answers fine from a desktop but has refused
+# GitHub's runners, which turned a red build into a mystery that had nothing to
+# do with the code. So ask the server first, and when it will not answer, say
+# the check was skipped rather than report a failure we did not cause.
+PORTABLE_URL="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+if ! have_curl; then
+    skip "accepting the portable download really installs it" "curl is not available to probe the download source"
+elif ! curl -sI --max-time 20 -A VideoScribe "$PORTABLE_URL" 2>/dev/null | head -1 | grep -q ' 200'; then
+    skip "accepting the portable download really installs it" "$PORTABLE_URL did not answer"
+else
+    check_root "accepting the portable download really installs it"     "2
 5
 " 0 "ffmpeg is ready"     sh -c 'rm -f /usr/bin/ffmpeg /usr/bin/ffprobe; python videoscribe.py'
+fi
 
 check "doctor reports a missing package rather than crashing" \
     "" 1 "pip install -r requirements.txt" \
@@ -436,8 +462,10 @@ y
 
 echo
 echo "======================================================================"
-printf ' %sPassed: %d%s   %sFailed: %d%s\n' "$C_GREEN" "$PASSED" "$C_OFF" \
-    "$([ "$FAILED" -gt 0 ] && echo "$C_RED" || echo "$C_DIM")" "$FAILED" "$C_OFF"
+printf ' %sPassed: %d%s   %sFailed: %d%s   %sSkipped: %d%s\n' \
+    "$C_GREEN" "$PASSED" "$C_OFF" \
+    "$([ "$FAILED" -gt 0 ] && echo "$C_RED" || echo "$C_DIM")" "$FAILED" "$C_OFF" \
+    "$([ "$SKIPPED" -gt 0 ] && echo "$C_YELLOW" || echo "$C_DIM")" "$SKIPPED" "$C_OFF"
 echo "======================================================================"
 echo
 

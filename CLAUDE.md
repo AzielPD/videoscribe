@@ -133,6 +133,14 @@ Nothing caught this for a while because every test ran `bash init.sh`, which
 ignores the bit. The CI now types `./init.sh`, and a check rejects any mode other
 than 100755.
 
+**One container check downloads 30 MB from a third party.** It is the only proof
+that the portable ffmpeg install actually works, so it is worth keeping — but
+`johnvansickle.com` answers a desktop and has refused GitHub's runners, which
+turned a red build into a mystery unrelated to the code. The check probes the
+server first and reports SKIP with the reason when it will not answer. Skips are
+counted and printed in the summary: a check that did not run is not a check that
+passed, and hiding that would be worse than the flakiness.
+
 **Debian and Ubuntu ship Python without `ensurepip`.** `python3 -m venv` fails
 until `python3-venv` is installed, which is a separate package. `init.sh` installs
 it and retries, then falls back to a `--user` install, because the raw failure
